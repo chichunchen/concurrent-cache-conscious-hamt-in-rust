@@ -1,10 +1,10 @@
 [package]
 name = "parallel-hamt-cache-conscious"
 version = "0.1.0"
-authors = ["chichunchen <chichunchen844@gmail.com>"]
+authors = ["chichunchen <chichunchen844@gmail.com>", "Wang, Shaojie <swang115@ur.rochester.edu>"]
 
 [dependencies]
 
 [[bin]]
 name = "parallel-hamt-cache-conscious"
-path = "main.rs"
+path = "src/lib.rs"

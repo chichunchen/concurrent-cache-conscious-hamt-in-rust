@@ -61,7 +61,7 @@ impl<T: TrieData> Trie<T> {
             }
             let value = match key.len() {
                 n if n >= KEY_GROUP => self.children[index].as_mut().map(|ref mut a| a.insert(value, &key[KEY_GROUP..])).unwrap_or(0),
-                _ => 9999,
+                _ => 9999,  // TODO value should be Option
             };
             self.depth += value;
             return value;
@@ -78,6 +78,14 @@ impl<T: TrieData> Trie<T> {
                 _ => return None,
             }
             _ => return None,
+        }
+    }
+
+    // return true if the key exists, otherwise, return false
+    pub fn contain(&self, key: &[u8]) -> bool {
+        match self.get_sub_trie(key) {
+            Some(_) => return true,
+            _ => return false,
         }
     }
 
@@ -149,16 +157,20 @@ fn test_get() {
     }
 }
 
-fn main() {
+#[test]
+fn test_contain() {
     let mut base = Trie::new();
-    let a = 1;
+    let key1 = &"1111111111111111".to_owned().into_bytes();
+    let key2 = &"0110111111111111".to_owned().into_bytes();
 
-    base.insert(a, &"1111111111111111".to_owned().into_bytes());
-    base.insert(2, &"1111111111111101".to_owned().into_bytes());
+    base.insert("abc", key1);
+    base.insert("cde", key2);
 
-    let op = base.get(&"1111111111111101".to_owned().into_bytes());
-    match op {
-        Some(d) => println!("{}", d),
-        _ => println!("find none"),
-    }
+    assert!(base.contain(key1));
+    assert!(base.contain(key2));
+}
+
+#[test]
+fn test_delete() {
+
 }
