@@ -83,8 +83,15 @@ impl<T: TrieData> Trie<T> {
 
     // return true if the key exists, otherwise, return false
     pub fn contain(&self, key: &[u8]) -> bool {
-        match self.get_sub_trie(key) {
-            Some(_) => return true,
+        let trie_op = self.get_sub_trie(key);
+        match trie_op {
+            Some(trie) => {
+                if trie.data == None {
+                    return false;
+                } else {
+                    return true;
+                }
+            }
             _ => return false,
         }
     }
@@ -103,6 +110,23 @@ impl<T: TrieData> Trie<T> {
         match key.len() {
             n if n >= KEY_GROUP => self.children[index].as_ref().and_then(|ref a| a.get_sub_trie(&key[KEY_GROUP..])),
             _ => Some(&self),
+        }
+    }
+
+    // TODO delete the data in the trie found by the key
+    pub fn delete_key(&mut self, key: &[u8]) {
+        println!("cccccccc");
+        if key.len() == 0 {
+            self.data = None;
+            println!("aaaaaaaa");
+        } else {
+            let index = compute_index(key);
+            println!("bbbbbbbb");
+
+            match key.len() {
+                n if n >= KEY_GROUP => self.children[index].as_mut().map(|ref mut a| a.delete_key(&key[KEY_GROUP..])).unwrap_or(()),
+                _ => (),
+            }
         }
     }
 }
@@ -171,6 +195,32 @@ fn test_contain() {
 }
 
 #[test]
-fn test_delete() {
+fn test_update() {
+    let mut base = Trie::new();
+    let key1 = &"1111111111111111".to_owned().into_bytes();
+    base.insert(1, key1);
+    base.insert(2, key1);
+    base.insert(1, key1);
+    base.insert(1, key1);
+    base.insert(2, key1);
+    let result = base.get(key1);
 
+    assert!(base.contain(key1));
+
+    match result {
+        Some(d) => assert_eq!(d, 2),
+        _ => assert!(false),
+    }
+}
+
+#[test]
+fn test_delete() {
+    let mut base = Trie::new();
+    let key1 = &"1111111111111111".to_owned().into_bytes();
+    base.insert(1, key1);
+    base.delete_key(key1);
+
+    let result = base.get(key1);
+
+    assert!(!base.contain(key1));
 }

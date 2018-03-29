@@ -6,9 +6,10 @@
 - cargo test
 
 ## TODO
-- [ ] Trie
-    - [X] Insert, Get, Contain
-    - [ ] Delete
+- [X] Trie
+    - [X] Insert, Get, Contain, Update (mutable insert)
+    - [X] Delete key
+    - [ ] Optimize
 - [ ] Hash Trie
 - [ ] Concurrent by lock
 - [ ] Cache coherence
