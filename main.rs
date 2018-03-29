@@ -62,7 +62,7 @@ impl<T: TrieData> Trie<T> {
                 self.children[index] = Some(Box::new(Trie::new()));
             }
             let value= match length {
-                n if n > 4 => self.children[index].as_mut().map(|ref mut a| a.add_value(value, &key[4..])).unwrap_or(0),
+                n if n >= 4 => self.children[index].as_mut().map(|ref mut a| a.add_value(value, &key[4..])).unwrap_or(0),
                 _          => 9999,
             };
             self.depth += value;
@@ -80,15 +80,24 @@ impl<T: TrieData> Trie<T> {
     }
 
     pub fn get_sub_trie<'a>(&'a self, key: &[u8]) -> Option<&'a Trie<T>> {
-        if key.len() == 0 {
-            Some(&self)
-        } else {
-            let index = key[0] as usize - '0' as usize;
-            let length = key.len();
-            match length {
-                n if n > 4 => self.children[index].as_ref().and_then(|ref a| a.get_sub_trie(&key[4..])),
-                _          => None,
+        let mut id = 0;
+        let length = key.len();
+        if length < 4 {
+            for i in 0..length {
+                let temp = key[i] as usize - '0' as usize;
+                println!("test tt {}", temp);
+                id += (temp << i);
             }
+        } else {
+            for i in 0..4 {
+                let temp = key[i] as usize - '0' as usize;
+                id += (temp << i);
+            }
+        }
+        let index = id as usize;
+        match length {
+            n if n >= 4 => self.children[index].as_ref().and_then(|ref a| a.get_sub_trie(&key[4..])),
+            _          => Some(&self),
         }
     }
 }
@@ -134,9 +143,9 @@ fn main() {
     base.add_value(a, &"1111111111111111".to_owned().into_bytes());
     println!("end1");
 
-//    base.add_value(2, &"1111111111111101".to_owned().into_bytes());
+    base.add_value(2, &"1111111111111101".to_owned().into_bytes());
 
-    let result = base.get_sub_trie(&"0111111111111111".to_owned().into_bytes());
+    let result = base.get_sub_trie(&"1111111111111101".to_owned().into_bytes());
     println!("end2");
 
     match result {
