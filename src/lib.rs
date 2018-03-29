@@ -115,17 +115,13 @@ impl<T: TrieData> Trie<T> {
 
     // TODO delete the data in the trie found by the key
     pub fn delete_key(&mut self, key: &[u8]) {
-        println!("cccccccc");
         if key.len() == 0 {
             self.data = None;
-            println!("aaaaaaaa");
         } else {
             let index = compute_index(key);
-            println!("bbbbbbbb");
 
-            match key.len() {
-                n if n >= KEY_GROUP => self.children[index].as_mut().map(|ref mut a| a.delete_key(&key[KEY_GROUP..])).unwrap_or(()),
-                _ => (),
+            if index >= KEY_GROUP {
+                self.children[index].as_mut().map(|ref mut a| a.delete_key(&key[KEY_GROUP..]));
             }
         }
     }
@@ -219,8 +215,6 @@ fn test_delete() {
     let key1 = &"1111111111111111".to_owned().into_bytes();
     base.insert(1, key1);
     base.delete_key(key1);
-
-    let result = base.get(key1);
 
     assert!(!base.contain(key1));
 }
