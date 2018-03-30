@@ -1,3 +1,10 @@
+extern crate rand;
+// extern crate test;
+// use test::Bencher;
+use rand::{thread_rng, Rng};
+use std::collections::HashMap;
+use std::time::SystemTime;
+
 pub trait TrieData: Clone + Copy + Eq + PartialEq {}
 
 impl<T> TrieData for T where T: Clone + Copy + Eq + PartialEq {}
@@ -56,7 +63,7 @@ impl<T: TrieData> Trie<T> {
 
             // if the array has not been created, then create one
             if self.children[index].is_none() {
-                println!("create subtree");
+                // println!("create subtree");
                 self.children[index] = Some(Box::new(Trie::new()));
             }
             let value = match key.len() {
@@ -127,6 +134,18 @@ impl<T: TrieData> Trie<T> {
     }
 }
 
+// Generate random string with KEY_LEN length
+fn gen_rand_str() -> String {
+    let mut rng = thread_rng();
+    let mut res = String::with_capacity(KEY_LEN);
+    for _ in 0..KEY_LEN {
+        match rng.gen_weighted_bool(2) {
+            true  => res.push('1'),
+            false => res.push('0'),
+        }
+    }
+    return res;
+}
 
 #[test]
 fn test_new_trie() {
@@ -218,3 +237,142 @@ fn test_delete() {
 
     assert!(!base.contain(key1));
 }
+
+fn timer(f: &Fn(u32), val: u32) {
+    let start = SystemTime::now();
+    f(val);
+    let end = SystemTime::now();
+    let since = end.duration_since(start).expect("Time went backwards");
+    println!("{:?}", since);
+    
+}
+
+fn rust_insert(iter: u32) {
+    let mut val : u32 = 0;
+    let mut hsmp = HashMap::new();
+    let start = SystemTime::now();
+    for _ in 0..iter { hsmp.insert(gen_rand_str(), val); val += 1; }
+    let end = SystemTime::now();
+    let since = end.duration_since(start).expect("Time went backwards");
+    println!("rust_insert{:?}", since);
+}
+
+fn hamt_insert(iter: u32) {
+    let mut val : u32 = 0;
+    let mut base = Trie::new();
+    let start = SystemTime::now();
+    for _ in 0..iter { base.insert(val, &gen_rand_str().into_bytes()); val += 1; }
+    let end = SystemTime::now();
+    let since = end.duration_since(start).expect("Time went backwards");
+    println!("hamt_insert{:?}", since);
+}
+
+fn rust_contain(iter: u32) {
+    let mut val : u32 = 0;
+    let mut hsmp = HashMap::new();
+    for _ in 0..iter { hsmp.insert(gen_rand_str(), val); val += 1; }
+
+    let start = SystemTime::now();
+    for _ in 0..iter { hsmp.contains_key(&gen_rand_str()); }
+    let end = SystemTime::now();
+    let since = end.duration_since(start).expect("Time went backwards");
+    println!("rust_contain{:?}", since);
+}
+
+fn hamt_contain(iter: u32) {
+    let mut val : u32 = 0;
+    let mut base = Trie::new();
+    for _ in 0..iter { base.insert(val, &gen_rand_str().into_bytes()); val += 1; }
+
+    let start = SystemTime::now();
+    for _ in 0..iter { base.contain(&gen_rand_str().into_bytes()); }
+    let end = SystemTime::now();
+    let since = end.duration_since(start).expect("Time went backwards");
+    println!("hamt_contain{:?}", since);
+}
+
+fn rust_get(iter: u32) {
+    let mut val : u32 = 0;
+    let mut hsmp = HashMap::new();
+    for _ in 0..iter { hsmp.insert(gen_rand_str(), val); val += 1; }
+
+    let start = SystemTime::now();
+    for _ in 0..iter { hsmp.get_mut(&gen_rand_str()); }
+    let end = SystemTime::now();
+    let since = end.duration_since(start).expect("Time went backwards");
+    println!("rust_get{:?}", since);
+}
+
+fn hamt_get(iter: u32) {
+    let mut val : u32 = 0;
+    let mut base = Trie::new();
+    for _ in 0..iter { base.insert(val, &gen_rand_str().into_bytes()); val += 1; }
+
+    let start = SystemTime::now();
+    for _ in 0..iter { base.get(&gen_rand_str().into_bytes()); }
+    let end = SystemTime::now();
+    let since = end.duration_since(start).expect("Time went backwards");
+    println!("hamt_get{:?}", since);
+}
+
+fn rust_delete(iter: u32) {
+    let mut val : u32 = 0;
+    let mut hsmp = HashMap::new();
+    let mut vec = Vec::new();
+    for _ in 0..iter { 
+        let tmp = gen_rand_str();
+        vec.push(tmp.clone());
+        hsmp.insert(tmp, val); 
+        val += 1; 
+    }
+
+    let start = SystemTime::now();
+    for _ in 0..iter {
+        let tmp = vec.pop();
+        hsmp.remove(&gen_rand_str()); 
+    }
+    let end = SystemTime::now();
+    let since = end.duration_since(start).expect("Time went backwards");
+    println!("hamt_delete{:?}", since);
+}
+
+fn hamt_delete(iter: u32) {
+    let mut val : u32 = 0;
+    let mut base = Trie::new();
+    let mut vec = Vec::new();
+    for _ in 0..iter { 
+        let tmp = gen_rand_str();
+        vec.push(tmp.clone());
+        base.insert(val, &tmp.into_bytes()); 
+        val += 1; 
+    }
+
+    let start = SystemTime::now();
+    for _ in 0..iter {
+        let tmp = vec.pop();
+        base.delete_key(&tmp.unwrap().into_bytes()); 
+    }
+    let end = SystemTime::now();
+    let since = end.duration_since(start).expect("Time went backwards");
+    println!("hamt_delete{:?}", since);
+}
+
+fn main() {
+    let iter : u32 = 50000;
+
+    // timer(&rust_insert, iter);
+    // timer(&hamt_insert, iter);
+    
+    rust_insert(iter);
+    hamt_insert(iter);
+
+    rust_contain(iter);
+    hamt_contain(iter);
+
+    rust_get(iter);
+    hamt_get(iter);
+    
+    rust_delete(iter);
+    hamt_delete(iter);
+}
+

@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["chichunchen <chichunchen844@gmail.com>", "Wang, Shaojie <swang115@ur.rochester.edu>"]
 
 [dependencies]
+rand="0.4.2"
 
 [[bin]]
 name = "parallel-hamt-cache-conscious"
