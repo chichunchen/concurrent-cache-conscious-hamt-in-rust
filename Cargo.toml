@@ -6,6 +6,6 @@ authors = ["chichunchen <chichunchen844@gmail.com>", "Wang, Shaojie <swang115@ur
 [dependencies]
 rand="0.4.2"
 
-[[bin]]
-name = "parallel-hamt-cache-conscious"
+[lib]
+name = "cchamt"
 path = "src/lib.rs"
