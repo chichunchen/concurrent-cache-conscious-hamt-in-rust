@@ -1,5 +1,3 @@
-//use cache_vec::Vec;
-
 pub trait TrieData: Clone + Copy + Eq + PartialEq {}
 
 impl<T> TrieData for T where T: Clone + Copy + Eq + PartialEq {}
