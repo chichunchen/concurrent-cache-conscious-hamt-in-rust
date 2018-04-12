@@ -2,7 +2,7 @@ use core::mem;
 use core::marker::PhantomData;
 use std::heap::{Alloc, Layout, Heap};
 use core::slice;
-use core::ops::{Index, Deref, DerefMut};
+use core::ops::{Index, IndexMut, Deref, DerefMut};
 use core::ptr::{Unique, self};
 
 const CAP_SIZE: usize = 16;
@@ -177,6 +177,15 @@ impl<T> Deref for Allocator<T> {
     }
 }
 
+impl<T> DerefMut for Allocator<T> {
+    fn deref_mut(&mut self) -> &mut [T] {
+        unsafe {
+            let ptr = self.ptr();
+            slice::from_raw_parts_mut(ptr, self.cap)
+        }
+    }
+}
+
 impl<T, I> Index<I> for Allocator<T>
     where
         I: slice::SliceIndex<[T]>,
@@ -186,5 +195,50 @@ impl<T, I> Index<I> for Allocator<T>
     #[inline]
     fn index(&self, index: I) -> &Self::Output {
         Index::index(&**self, index)
+    }
+}
+
+impl<T, I> IndexMut<I> for Allocator<T>
+    where
+        I: ::core::slice::SliceIndex<[T]>,
+{
+    #[inline]
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+        IndexMut::index_mut(&mut **self, index)
+    }
+}
+
+impl<T: PartialEq> PartialEq for Allocator<T> {
+    fn eq(&self, other: &Allocator<T>) -> bool {
+        unimplemented!()
+    }
+
+    fn ne(&self, other: &Allocator<T>) -> bool {
+        unimplemented!()
+    }
+}
+impl<T: Eq> Eq for Allocator<T> {}
+
+impl<T> AsRef<Allocator<T>> for Allocator<T> {
+    fn as_ref(&self) -> &Allocator<T> {
+        self
+    }
+}
+
+impl<T> AsMut<Allocator<T>> for Allocator<T> {
+    fn as_mut(&mut self) -> &mut Allocator<T> {
+        self
+    }
+}
+
+impl<T> AsRef<[T]> for Allocator<T> {
+    fn as_ref(&self) -> &[T] {
+        self
+    }
+}
+
+impl<T> AsMut<[T]> for Allocator<T> {
+    fn as_mut(&mut self) -> &mut [T] {
+        self
     }
 }
