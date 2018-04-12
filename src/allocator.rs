@@ -242,3 +242,13 @@ impl<T> AsMut<[T]> for Allocator<T> {
         self
     }
 }
+
+impl<T: Clone> Clone for Allocator<T> {
+    fn clone(&self) -> Self {
+        unimplemented!()
+    }
+
+    fn clone_from(&mut self, source: &Self) {
+        unimplemented!()
+    }
+}

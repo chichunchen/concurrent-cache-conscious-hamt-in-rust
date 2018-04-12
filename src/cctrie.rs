@@ -1,3 +1,5 @@
+use Allocator;
+
 pub trait TrieData: Clone + Copy + Eq + PartialEq {}
 
 impl<T> TrieData for T where T: Clone + Copy + Eq + PartialEq {}
@@ -6,7 +8,7 @@ impl<T> TrieData for T where T: Clone + Copy + Eq + PartialEq {}
 pub struct Trie<T: TrieData> {
     pub data: Option<T>,
     depth: u32,
-    children: Vec<Option<Box<Trie<T>>>>,
+    children: Allocator<Option<Box<Trie<T>>>>,
 }
 
 
@@ -35,11 +37,11 @@ fn compute_index(key: &[u8]) -> usize {
 
 impl<T: TrieData> Trie<T> {
     pub fn new() -> Self {
-        let mut children = Vec::with_capacity(KEY_LEN);
-        for _ in 0..KEY_LEN {
-            children.push(None);
+        let mut children = Allocator::with_capacity(KEY_LEN);
+        for i in 0..KEY_LEN {
+            children.update(i as i32, None);
         }
-        Trie { data: None, depth: 0, children: children }
+        Trie { data: None, depth: 0, children }
     }
 
     pub fn depth(&self) -> u32 {
