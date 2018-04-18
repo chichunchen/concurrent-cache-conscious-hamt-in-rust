@@ -11,12 +11,12 @@ fn test_new_trie() {
 fn test_insert() {
     let mut base = Trie::new();
 
-    base.insert((), &"1111111111111111".to_owned().into_bytes());
-    base.insert((), &"1111101011111111".to_owned().into_bytes());
-    base.insert((), &"1111111111111011".to_owned().into_bytes());
-    base.insert((), &"1111111111111110".to_owned().into_bytes());
-    base.insert((), &"1111111111111101".to_owned().into_bytes());
-    base.insert((), &"1111111111111110".to_owned().into_bytes());
+    base.insert((), &"0000000011111111".to_owned().into_bytes());
+    base.insert((), &"0000000111111111".to_owned().into_bytes());
+    base.insert((), &"0000001011111111".to_owned().into_bytes());
+    base.insert((), &"0000001111111111".to_owned().into_bytes());
+    base.insert((), &"0000010011111111".to_owned().into_bytes());
+    base.insert((), &"0000010111111111".to_owned().into_bytes());
 }
 
 #[test]

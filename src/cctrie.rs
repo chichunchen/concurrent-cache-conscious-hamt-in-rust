@@ -1,14 +1,13 @@
-use Allocator;
-
 pub trait TrieData: Clone + Copy + Eq + PartialEq {}
 
 impl<T> TrieData for T where T: Clone + Copy + Eq + PartialEq {}
+
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Trie<T: TrieData> {
     pub data: Option<T>,
     depth: u32,
-    children: Allocator<Option<Box<Trie<T>>>>,
+    children: Vec<Option<Box<Trie<T>>>>,
 }
 
 
@@ -37,9 +36,9 @@ fn compute_index(key: &[u8]) -> usize {
 
 impl<T: TrieData> Trie<T> {
     pub fn new() -> Self {
-        let mut children = Allocator::with_capacity(KEY_LEN);
+        let mut children = Vec::with_capacity(KEY_LEN);
         for i in 0..KEY_LEN {
-            children.update(i as i32, None);
+            children.push(None);
         }
         Trie { data: None, depth: 0, children }
     }
@@ -56,13 +55,15 @@ impl<T: TrieData> Trie<T> {
         } else {
             let index = compute_index(key);
 
-            // if the array has not been created, then create one
+            // if the trie has not been created, then create one
             if self.children[index].is_none() {
                 // println!("create subtree");
                 self.children[index] = Some(Box::new(Trie::new()));
             }
             let value = match key.len() {
-                n if n >= KEY_GROUP => self.children[index].as_mut().map(|ref mut a| a.insert(value, &key[KEY_GROUP..])).unwrap_or(0),
+                n if n >= KEY_GROUP =>{
+                    self.children[index].as_mut().map(|ref mut a| a.insert(value, &key[KEY_GROUP..])).unwrap_or(0)
+                },
                 _ => 9999,  // TODO value should be Option
             };
             self.depth += value;
