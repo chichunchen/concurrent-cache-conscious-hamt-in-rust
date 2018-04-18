@@ -9,3 +9,7 @@ rand="0.4.2"
 [lib]
 name = "cchamt"
 path = "src/lib.rs"
+
+[[bin]]
+name = "cchamt"
+path = "src/cctrie_contiguous.rs"
