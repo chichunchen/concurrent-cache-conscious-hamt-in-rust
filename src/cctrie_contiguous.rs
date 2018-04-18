@@ -109,74 +109,84 @@ impl<T: TrieData> ContiguousTrie<T> {
     }
 }
 
-//#[test]
-//fn test_new_contiguous_trie() {
-//    let trie = ContiguousTrie::<()>::new(0, None);
-//}
-//
-//#[test]
-//fn test_insert_contiguous_trie() {
-//    let capacity = 65536;
-//    let mut allocator: Vec<Option<Box<ContiguousTrie<()>>>> = Vec::with_capacity(capacity);
-//    for i in 0..capacity {
-//        allocator.push(None);
-//    }
-//    let mut trie = ContiguousTrie::<()>::new(0, None);
-//    trie.insert(&mut allocator, (), &"0000000011111111".to_owned().into_bytes());
-//    trie.insert(&mut allocator, (), &"0000000111111111".to_owned().into_bytes());
-//    trie.insert(&mut allocator, (), &"0000001011111111".to_owned().into_bytes());
-//    trie.insert(&mut allocator, (), &"0000001111111111".to_owned().into_bytes());
-//    trie.insert(&mut allocator, (), &"0000010011111111".to_owned().into_bytes());
-//    trie.insert(&mut allocator, (), &"0000010111111111".to_owned().into_bytes());
-//}
-//
-//
-//#[test]
-//fn test_get_contiguous_trie() {
-//    let capacity = 65536;
-//    let mut allocator: Vec<Option<Box<ContiguousTrie<&str>>>> = Vec::with_capacity(capacity);
-//    for i in 0..capacity {
-//        allocator.push(None);
-//    }
-//    let mut trie = ContiguousTrie::<&str>::new(0, None);
-//
-//    trie.insert(&mut allocator, "abc", &"1111111111111111".to_owned().into_bytes());
-//    trie.insert(&mut allocator, "cde", &"0110111111111111".to_owned().into_bytes());
-//
-//    let a = trie.get(&allocator, &"1111111111111111".to_owned().into_bytes());
-//    let ab = trie.get(&allocator, &"0110111111111111".to_owned().into_bytes());
-//    match a {
-//        Some(d) => assert_eq!(d, "abc"),
-//        _ => println!("find none"),
-//    }
-//
-//    match ab {
-//        Some(d) => assert_ne!(d, "add"),
-//        _ => println!("find none"),
-//    }
-//}
-//
-//#[test]
-//fn test_multithreaded_get() {
-//    let data_pointer = Arc::new(
-//        vec!("some", "useful", "data")
-//    );
-//
-//    let child_data_pointer = data_pointer.clone();
-//    let child_thread = thread::spawn(move || {
-//        for &line in child_data_pointer.iter() {
-//            println!("Child thread: {}", line);
-//            thread::sleep(Duration::from_millis(100));
-//        }
-//    });
-//
-//    for &line in data_pointer.iter() {
-//        println!("Parent thread: {}", line);
-//        thread::sleep(Duration::from_millis(100));
-//    }
-//
-//    child_thread.join();
-//}
+#[test]
+fn test_new_contiguous_trie() {
+    let trie = ContiguousTrie::<()>::new(0, None);
+}
+
+#[test]
+fn test_insert_contiguous_trie() {
+    let capacity = 65536;
+    let mut allocator: Vec<Option<Box<ContiguousTrie<()>>>> = Vec::with_capacity(capacity);
+    for i in 0..capacity {
+        allocator.push(None);
+    }
+    let mut trie = ContiguousTrie::<()>::new(0, None);
+    trie.insert(&mut allocator, (), &"0000000011111111".to_owned().into_bytes());
+    trie.insert(&mut allocator, (), &"0000000111111111".to_owned().into_bytes());
+    trie.insert(&mut allocator, (), &"0000001011111111".to_owned().into_bytes());
+    trie.insert(&mut allocator, (), &"0000001111111111".to_owned().into_bytes());
+    trie.insert(&mut allocator, (), &"0000010011111111".to_owned().into_bytes());
+    trie.insert(&mut allocator, (), &"0000010111111111".to_owned().into_bytes());
+}
+
+
+#[test]
+fn test_get_contiguous_trie() {
+    let capacity = 65536;
+    let mut allocator: Vec<Option<Box<ContiguousTrie<&str>>>> = Vec::with_capacity(capacity);
+    for i in 0..capacity {
+        allocator.push(None);
+    }
+    let mut trie = ContiguousTrie::<&str>::new(0, None);
+
+    trie.insert(&mut allocator, "abc", &"1111111111111111".to_owned().into_bytes());
+    trie.insert(&mut allocator, "cde", &"0110111111111111".to_owned().into_bytes());
+
+    let a = trie.get(&allocator, &"1111111111111111".to_owned().into_bytes());
+    let ab = trie.get(&allocator, &"0110111111111111".to_owned().into_bytes());
+    match a {
+        Some(d) => assert_eq!(d, "abc"),
+        _ => println!("find none"),
+    }
+
+    match ab {
+        Some(d) => assert_ne!(d, "add"),
+        _ => println!("find none"),
+    }
+}
+
+#[test]
+fn test_multithreaded_get() {
+    let capacity = 128;
+    let mut allocator: Vec<Option<Box<ContiguousTrie<usize>>>> = Vec::with_capacity(capacity);
+    for i in 0..capacity {
+        allocator.push(None);
+    }
+    let mut trie = ContiguousTrie::new(0, None);    // set start position to zero
+    trie.insert(&mut allocator, 1, &"0000000011111111".to_owned().into_bytes());
+    trie.insert(&mut allocator, 10, &"0000000111111111".to_owned().into_bytes());
+    trie.insert(&mut allocator, 100, &"0000001011111111".to_owned().into_bytes());
+    trie.insert(&mut allocator, 1000, &"0000001111111111".to_owned().into_bytes());
+
+    let mut thread_handle: Vec<thread::JoinHandle<_>> = vec![];
+    let allocator_arc = Arc::new(allocator);
+    let trie_arc = Arc::new(trie);
+
+    for tid in 0..8 {
+        let trie_arc = trie_arc.clone();
+        let allocator_arc = allocator_arc.clone();
+
+        thread_handle.push(thread::spawn(move || {
+            let result = trie_arc.get(allocator_arc.clone().as_ref(), &"0000001111111111".to_owned().into_bytes());
+            assert_eq!(result.unwrap(), 1000);
+        }));
+    }
+
+    for thread in thread_handle {
+        thread.join();
+    }
+}
 
 
 fn main() {
