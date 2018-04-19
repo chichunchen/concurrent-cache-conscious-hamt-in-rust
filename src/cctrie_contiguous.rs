@@ -14,7 +14,7 @@ impl<T> TrieData for T where T: Clone + Copy + Eq + PartialEq {}
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct ContiguousTrie<T: TrieData> {
     pub data: Option<T>,
-    depth: u32,
+    depth: usize,
     children_offset: usize,    // the start position in allocator that place the array in hash trie
 }
 
@@ -36,10 +36,18 @@ fn compute_index(key: &[u8]) -> usize {
 }
 
 impl<T: TrieData> ContiguousTrie<T> {
-    pub fn new(children_offset: usize, data: Option<T>) -> Self {
+    pub fn new() -> Self {
+        ContiguousTrie {
+            data: None,
+            depth: 0,
+            children_offset: 0,
+        }
+    }
+
+    pub fn _new(data: Option<T>, depth: usize, children_offset: usize) -> Self {
         ContiguousTrie {
             data,
-            depth: 0,
+            depth,
             children_offset,
         }
     }
@@ -53,29 +61,39 @@ impl<T: TrieData> ContiguousTrie<T> {
         if allocator[index].is_none() {
             unsafe {
                 ALLOCATOR_COUNTER += 1;
-                let t = ContiguousTrie::new(ALLOCATOR_COUNTER * 16, Some(value));
+                let t = ContiguousTrie::_new(Some(value), 0, ALLOCATOR_COUNTER * 16);
                 allocator[index] = Some(Box::new(t));
             }
         } else {
             let mut keep: Option<T> = None;
-            let mut last_index = index;
-            while allocator[index].is_some() {
-                keep = allocator[index].as_ref().unwrap().data.clone();
-                last_index = index;
-                index = allocator[index].as_ref().unwrap().children_offset;
+            let mut parent_index = index;
+            let mut base_offset = 0;
+            let mut current_index = index;
+            // find the index that we want to insert data, and store it in current_index
+            while allocator[current_index].is_some() {
+                keep = allocator[index].as_ref().unwrap().data.clone(); // ()
+                parent_index = index; // 0
+                base_offset = allocator[index].as_ref().unwrap().children_offset; // 16
+                index = compute_index(&key[KEY_GROUP..]); // 8
+                current_index = base_offset + index; // 24
+
+                println!("debug parent: {} base offset: {} current_index: {}", parent_index, base_offset, current_index);
             }
             unsafe {
-                ALLOCATOR_COUNTER += 1;
-                let t1 = ContiguousTrie::new(ALLOCATOR_COUNTER * 16, Some(value));
-                allocator[index] = Some(Box::new(t1));
+                let curr_depth = allocator[parent_index].as_ref().unwrap().depth;
 
-                // copy the conflict data to children
-                ALLOCATOR_COUNTER += 1;
-                let t2 = ContiguousTrie::new(ALLOCATOR_COUNTER * 16, keep);
-                allocator[index + 1] = Some(Box::new(t2));
+                // deal with conflict
+                if allocator[parent_index].as_ref().unwrap().data != None {
+                    let orig = ContiguousTrie::_new(keep, curr_depth + 1, ALLOCATOR_COUNTER * 16);
+                    allocator[base_offset] = Some(Box::new(orig));
+                    allocator[parent_index].as_mut().unwrap().data = None;
+                }
 
-                // remove conflict
-                allocator[last_index].as_mut().unwrap().data = None;
+                // add new node
+                ALLOCATOR_COUNTER += 1;
+                let new = ContiguousTrie::_new(Some(value), curr_depth + 1, ALLOCATOR_COUNTER * 16);
+                allocator[current_index] = Some(Box::new(new)); // TODO index -> current key group
+                println!("current_index {}", current_index);
             }
         }
     }
@@ -95,39 +113,50 @@ impl<T: TrieData> ContiguousTrie<T> {
     }
 
     pub fn get(&self, allocator: &Vec<Option<Box<ContiguousTrie<T>>>>, key: &[u8]) -> Option<T> {
-        let mut index = compute_index(key);
-
-        while allocator[index].is_some() {
-            if allocator[index].as_ref().unwrap().data.is_some() {
-                return allocator[index].as_ref().unwrap().data;
-            } else {
-                index = allocator[index].as_ref().unwrap().children_offset;
-            }
-        }
-
-        None
+        self._get(allocator, key, 0)
     }
+
+    fn _get(&self, allocator: &Vec<Option<Box<ContiguousTrie<T>>>>, key: &[u8], offset: usize) -> Option<T> {
+        let index = compute_index(key);
+        match allocator[offset + index].as_ref() {
+            Some(T) => {
+                match T.data {
+                    Some(d) => Some(d),
+                    None => self._get(allocator, &key[KEY_GROUP..], T.children_offset)
+                }
+            }
+            None => None
+        }
+    }
+
+    // remove the given key and return the deleted value
+//    pub fn remove(&mut self, allocator: &Vec<Option<Box<ContiguousTrie<T>>>>, key: &[u8]) -> Option<T> {
+//
+//    }
 }
 
 #[test]
 fn test_new_contiguous_trie() {
-    let trie = ContiguousTrie::<()>::new(0, None);
+    let trie = ContiguousTrie::<()>::new();
 }
 
 #[test]
 fn test_insert_contiguous_trie() {
-    let capacity = 65536;
+    let capacity = 200;
     let mut allocator: Vec<Option<Box<ContiguousTrie<()>>>> = Vec::with_capacity(capacity);
     for i in 0..capacity {
         allocator.push(None);
     }
-    let mut trie = ContiguousTrie::<()>::new(0, None);
+    let mut trie = ContiguousTrie::<()>::new();
     trie.insert(&mut allocator, (), &"0000000011111111".to_owned().into_bytes());
     trie.insert(&mut allocator, (), &"0000000111111111".to_owned().into_bytes());
     trie.insert(&mut allocator, (), &"0000001011111111".to_owned().into_bytes());
     trie.insert(&mut allocator, (), &"0000001111111111".to_owned().into_bytes());
     trie.insert(&mut allocator, (), &"0000010011111111".to_owned().into_bytes());
     trie.insert(&mut allocator, (), &"0000010111111111".to_owned().into_bytes());
+    trie.insert(&mut allocator, (), &"0000011111111111".to_owned().into_bytes());
+    trie.insert(&mut allocator, (), &"0000100011111111".to_owned().into_bytes());
+    trie.insert(&mut allocator, (), &"0000100111111111".to_owned().into_bytes());
 }
 
 
@@ -138,7 +167,7 @@ fn test_get_contiguous_trie() {
     for i in 0..capacity {
         allocator.push(None);
     }
-    let mut trie = ContiguousTrie::<&str>::new(0, None);
+    let mut trie = ContiguousTrie::<&str>::new();
 
     trie.insert(&mut allocator, "abc", &"1111111111111111".to_owned().into_bytes());
     trie.insert(&mut allocator, "cde", &"0110111111111111".to_owned().into_bytes());
@@ -163,7 +192,7 @@ fn test_multithreaded_get() {
     for i in 0..capacity {
         allocator.push(None);
     }
-    let mut trie = ContiguousTrie::new(0, None);    // set start position to zero
+    let mut trie = ContiguousTrie::new();    // set start position to zero
     trie.insert(&mut allocator, 1, &"0000000011111111".to_owned().into_bytes());
     trie.insert(&mut allocator, 10, &"0000000111111111".to_owned().into_bytes());
     trie.insert(&mut allocator, 100, &"0000001011111111".to_owned().into_bytes());
@@ -190,49 +219,24 @@ fn test_multithreaded_get() {
 
 
 fn main() {
-    let capacity = 128;
+    let capacity = 200;
     let mut allocator: Vec<Option<Box<ContiguousTrie<usize>>>> = Vec::with_capacity(capacity);
     for i in 0..capacity {
         allocator.push(None);
     }
-    let mut trie = ContiguousTrie::new(0, None);    // set start position to zero
+    let mut trie = ContiguousTrie::<usize>::new();
     trie.insert(&mut allocator, 1, &"0000000011111111".to_owned().into_bytes());
-    trie.insert(&mut allocator, 10, &"0000000111111111".to_owned().into_bytes());
-    trie.insert(&mut allocator, 100, &"0000001011111111".to_owned().into_bytes());
-    trie.insert(&mut allocator, 1000, &"0000001111111111".to_owned().into_bytes());
-//    trie.insert(&mut allocator, 2, &"0000000111111111".to_owned().into_bytes());
-//    trie.insert(&mut allocator, 3, &"0000001011111111".to_owned().into_bytes());
-//    trie.insert(&mut allocator, 4, &"0000001111111111".to_owned().into_bytes());
-//    trie.insert(&mut allocator, 5, &"0000010011111111".to_owned().into_bytes());
-//    trie.insert(&mut allocator, 6, &"0000010111111111".to_owned().into_bytes());
+    trie.insert(&mut allocator, 2, &"0000000111111111".to_owned().into_bytes());
+    trie.insert(&mut allocator, 3, &"0000001011111111".to_owned().into_bytes());
+    trie.insert(&mut allocator, 4, &"0000001111111111".to_owned().into_bytes());
+    trie.insert(&mut allocator, 5, &"0000010011111111".to_owned().into_bytes());
+    trie.insert(&mut allocator, 6, &"0000010111111111".to_owned().into_bytes());
+    trie.insert(&mut allocator, 7, &"0000011011111111".to_owned().into_bytes());
+    trie.insert(&mut allocator, 8, &"0000011111111111".to_owned().into_bytes());
 
+    println!("{:#?}", allocator);
 
-//    println!("{:#?}", allocator);
-//    println!("{}", trie.find_allocator_empty_index(allocator, &"0000000011111111".to_owned().into_bytes(), 0));
-
-    let a = trie.contain(&allocator, &"0010001111111111".to_owned().into_bytes());
-//    println!("{}", a);
-
-//    let b = trie.get(p.clone().as_ref(), &"0000001111111111".to_owned().into_bytes());
-//    println!("{:#?}", b.unwrap());
-    let mut thread_handle: Vec<thread::JoinHandle<_>> = vec![];
-    let allocator_arc = Arc::new(allocator);
-    let trie_arc = Arc::new(trie);
-
-    for tid in 0..4 {
-        let trie_arc = trie_arc.clone();
-        let allocator_arc = allocator_arc.clone();
-
-        thread_handle.push(thread::spawn(move || {
-//            println!("{:?}", trie_arc.get(allocator_arc.clone().as_ref(), &"0000001111111111".to_owned().into_bytes()));
-            let stdout = io::stdout();
-            writeln!(&mut stdout.lock(), "{:?}", trie_arc.get(allocator_arc.clone().as_ref(), &"0000001111111111".to_owned().into_bytes())).unwrap();
-        }));
-    }
-
-    for thread in thread_handle {
-        thread.join();
-    }
+    println!("{:#?}", trie.get(&allocator, &"0000011111111111".to_owned().into_bytes()));
 
     // cannot borrow v as mutable more than once at a time
 //    let mut v: Vec<usize> = Vec::with_capacity(4096);
