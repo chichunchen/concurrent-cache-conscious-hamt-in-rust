@@ -20,4 +20,4 @@ mod bench;
 pub use cctrie::{Trie, TrieData, IndexStatus};
 pub use cache_vec::CCVec;
 pub use allocator::{Allocator};
-pub use cctrie_contiguous::ContiguousTrie;
+pub use cctrie_contiguous::SubTrie;
