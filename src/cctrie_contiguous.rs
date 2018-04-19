@@ -12,6 +12,8 @@ pub struct ContiguousTrie<T: TrieData> {
     insert_counter: usize,
 }
 
+// TODO insert with different pattern
+
 impl<T: TrieData> ContiguousTrie<T> {
     // Allocate memory at first
     pub fn new(capacity: usize) -> Self {
@@ -46,8 +48,8 @@ impl<T: TrieData> ContiguousTrie<T> {
                 base_offset = self.memory[index].as_ref().unwrap().children_offset; // 16
                 index = compute_index(&key[KEY_GROUP..]); // 8
                 current_index = base_offset + index; // 24
-                println!("debug parent: {} base offset: {} current_index: {}", parent_index, base_offset, current_index);
             }
+            println!("debug parent: {} base offset: {} current_index: {}", parent_index, base_offset, current_index);
             let curr_depth = self.memory[parent_index].as_ref().unwrap().depth;
 
             // deal with conflict
@@ -152,7 +154,7 @@ fn test_new_contiguous_trie() {
 
 #[test]
 fn test_insert_contiguous_trie() {
-    let mut trie: ContiguousTrie<usize> = ContiguousTrie::new(65536);
+    let mut trie: ContiguousTrie<usize> = ContiguousTrie::new(100);
     trie.insert(1, &"0000000011111111".to_owned().into_bytes());
     trie.insert(2, &"0000000111111111".to_owned().into_bytes());
     trie.insert(3, &"0000001011111111".to_owned().into_bytes());
@@ -162,6 +164,8 @@ fn test_insert_contiguous_trie() {
     trie.insert(7, &"0000011011111111".to_owned().into_bytes());
     trie.insert(8, &"0000011111111111".to_owned().into_bytes());
     println!("{:#?}", trie.get(&"0000000011111111".to_owned().into_bytes()));
+    println!("{:#?}", trie);
+    assert!(false);
 }
 
 
@@ -201,17 +205,20 @@ fn test_multithreaded_get() {
     }
 }
 
+#[test]
+fn test_large_size_trie() {
+}
+
 fn main() {
-    let mut trie: ContiguousTrie<usize> = ContiguousTrie::new(65536);
-    trie.insert(1, &"0000000011111111".to_owned().into_bytes());
-    trie.insert(2, &"0000000111111111".to_owned().into_bytes());
-    trie.insert(3, &"0000001011111111".to_owned().into_bytes());
-    trie.insert(4, &"0000001111111111".to_owned().into_bytes());
-    trie.insert(5, &"0000010011111111".to_owned().into_bytes());
-    trie.insert(6, &"0000010111111111".to_owned().into_bytes());
-    trie.insert(7, &"0000011011111111".to_owned().into_bytes());
-    trie.insert(8, &"0000011111111111".to_owned().into_bytes());
-    println!("{:#?}", trie.get(&"0000000011111111".to_owned().into_bytes()));
+    let mut trie: ContiguousTrie<i32> = ContiguousTrie::new(100);
+    let start = 0;
+    for i in 4294967290..4294967296 {
+        let s = &format!("{:#032b}", i)[2..];
+        let bytes = &s.to_owned().into_bytes();
+        println!("{}", s);
+//        trie.insert(i, bytes);
+    }
+    println!("{:#?}", trie);
 
     // cannot borrow v as mutable more than once at a time
 //    let mut v: Vec<usize> = Vec::with_capacity(4096);
