@@ -5,6 +5,8 @@ authors = ["chichunchen <chichunchen844@gmail.com>", "Wang, Shaojie <swang115@ur
 
 [dependencies]
 rand="0.4.2"
+chashmap="2.2.0"
+rayon="1.0.1"
 
 [lib]
 name = "cchamt"
