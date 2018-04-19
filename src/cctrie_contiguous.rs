@@ -23,13 +23,14 @@ const KEY_LEN: usize = 16;
 const KEY_GROUP: usize = 4;
 
 
-// index is the sum of binary in a group
+// return the index in the first <= 4 bits
+// for instances: 0000 0000 -> 0
 fn compute_index(key: &[u8]) -> usize {
     let mut id = 0;
     let length = if key.len() > KEY_GROUP { KEY_GROUP } else { key.len() };
     for i in 0..length {
         let temp = key[i] as usize - '0' as usize;
-        id += temp << i;
+        id += temp << (length - i - 1);
     }
 
     return id as usize;

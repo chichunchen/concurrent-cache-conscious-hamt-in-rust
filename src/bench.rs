@@ -61,7 +61,6 @@ fn bench_chashmap(b: &mut Bencher) {
     let mut vector = Vec::new();
     let mut val: usize = 0;
     for _ in 0..iter {
-
         let key = gen_rand_str().into_bytes();
         vector.push(key.clone());
         base.insert(key, val);
@@ -85,7 +84,6 @@ fn bench_chashmap(b: &mut Bencher) {
             for i in begin..end {
                 let key = &vector_arc[i];
                 let res = base_arc.get(&key.to_owned());
-
             }
         }));
     }
@@ -98,7 +96,6 @@ fn bench_chashmap(b: &mut Bencher) {
     let since = end.duration_since(start).expect("Time went backwards");
     println!("hamt_chashmap{:?}", since);
     assert!(false);
-
 }
 
 #[bench]
@@ -108,7 +105,6 @@ fn bench_hashmap(b: &mut Bencher) {
     let mut vector = Vec::new();
     let mut val: usize = 0;
     for _ in 0..iter {
-
         let key = gen_rand_str().into_bytes();
         vector.push(key.clone());
         base.insert(key, val);
@@ -132,7 +128,6 @@ fn bench_hashmap(b: &mut Bencher) {
             for i in begin..end {
                 let key = &vector_arc[i];
                 let res = base_arc.get(&key.to_owned());
-
             }
         }));
     }
@@ -145,26 +140,24 @@ fn bench_hashmap(b: &mut Bencher) {
     let since = end.duration_since(start).expect("Time went backwards");
     println!("hamt_hashmap{:?}", since);
     assert!(false);
-
 }
 
 #[bench]
 fn bench_read(b: &mut Bencher) {
-    let iter = 1000;
+    let iter = 10000;
 
     let capacity = 65536;
     let mut allocator: Vec<Option<Box<ContiguousTrie<usize>>>> = Vec::with_capacity(capacity);
     for i in 0..capacity {
         allocator.push(None);
     }
-    let mut trie = ContiguousTrie::new(0, None);    // set start position to zero
-    let mut vector = Vec::new();
+    let mut trie = ContiguousTrie::<usize>::new();
+    let mut vector: Vec<String> = Vec::new();
     let mut val: usize = 0;
     for _ in 0..iter {
-
         let key = gen_rand_str();
         vector.push(key.clone());
-        trie.insert(&mut allocator, val, &key.into_bytes());
+//        trie.insert(&mut allocator, val, &key.into_bytes());
         val += 1;
     }
 
@@ -188,7 +181,6 @@ fn bench_read(b: &mut Bencher) {
             for i in begin..end {
                 let key = &vector_arc[i];
                 trie_arc.get(allocator_arc.clone().as_ref(), &key.as_bytes().to_owned());
-
             }
         }));
     }
@@ -201,6 +193,5 @@ fn bench_read(b: &mut Bencher) {
     let since = end.duration_since(start).expect("Time went backwards");
     println!("hamt_get{:?}", since);
     assert!(false);
-
 }
 
