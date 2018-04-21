@@ -4,6 +4,7 @@ extern crate test;
 use test::Bencher;
 use std::usize;
 use std::collections::HashMap;
+use rand::{Rng, thread_rng};
 
 pub trait TrieData: Clone + Copy + Eq + PartialEq {}
 impl<T> TrieData for T where T: Clone + Copy + Eq + PartialEq {}
@@ -83,6 +84,22 @@ fn bench_large_size_trie(b: &mut Bencher) {
     b.iter(|| {
         for i in 0..range {
             let g = trie.get(&i);
+        }
+    });
+}
+
+
+#[bench]
+fn bench_large_size_reverse_trie(b: &mut Bencher) {
+    let mut trie = ContiguousTrie::<usize>::new();
+    let range = 2usize.pow(KEY_LEN);
+    for i in 0..range {
+        trie.insert(i, &i);
+    }
+    b.iter(|| {
+        for i in 1..range {
+            let x = range - i - 1;
+            let g = trie.get(&x);
         }
     });
 }
