@@ -1,144 +1,45 @@
-use std::thread;
-use std::sync::Arc;
-use std::time::Duration;
-use std::io;
-use std::io::Write;
+#![feature(test)]
 
-#[derive(Debug)]
-pub struct ContiguousTrie<T: TrieData> {
-    memory: Vec<Option<Box<SubTrie<T>>>>,
-    insert_counter: usize,
-}
+extern crate test;
+extern crate rand;
 
-impl<T: TrieData> ContiguousTrie<T> {
-    pub fn new(capacity: usize) -> Self {
-        let mut memory: Vec<Option<Box<SubTrie<T>>>> = Vec::with_capacity(capacity);
-        // allocate memory for level-1 trie array
-        for _ in 0..KEY_LEN {
-            memory.push(None);
-        }
-        ContiguousTrie {
-            memory,
-            insert_counter: 0,
-        }
-    }
-
-    fn allocate_child_array(&mut self) {
-        for _ in 0..KEY_LEN {
-            self.memory.push(None);
-        }
-    }
-
-    // always use it from 0 (find from root)
-    // if found empty slot, then return it, else return the value of level that conflicts
-    fn find_empty_slot(&self, key: &[u8], from: usize, level: usize) -> (Option<usize>, Option<usize>) {
-        let index = from + compute_index(key);
-        match &self.memory[index] {
-            Some(t) => {
-                match t.data {
-                    Some(d) => (None, Some(level)),
-                    None => self.find_empty_slot(&key[KEY_GROUP..], t.children_offset.unwrap(), level + 1)
-                }
-            },
-            None => {
-                (Some(index), None)
-            },
-        }
-    }
-
-    fn resolve_conflict(&mut self, value: T, key: [u8; KEY_LEN], from: usize) {
-        let true_key = &key[from..];
-        let index = compute_index(&true_key);
-
-        // save old, and then update the conflict node to key = None
-        let old = self.memory[index].clone();
-        self.memory[index].as_mut().unwrap().key = None;
-        self.memory[index].as_mut().unwrap().data = None;
-        self.insert_counter += 1;
-        self.memory[index].as_mut().unwrap().children_offset = Some(self.insert_counter << KEY_GROUP);
-
-        // find where to insert the old one and the new one
-        let mut i = KEY_GROUP + from * KEY_GROUP;
-        let mut base = 0;
-        let mut old_key_group = 0;
-        let mut new_key_group = 0;
-        let mut depth = 0;
-        while i < KEY_LEN {
-            old_key_group = compute_index(&old.as_ref().unwrap().key.unwrap()[i..]);
-            new_key_group = compute_index(&key[i..]);
-            println!("{} {} {:?} {:?}", old_key_group, new_key_group, old.as_ref().unwrap().key, key);
-            if old_key_group != new_key_group {
-                break;
-            }
-            i += KEY_GROUP;
-            depth += 1;
-
-            // at node for confliction
-            self.allocate_child_array();
-            base = self.insert_counter << KEY_GROUP + old_key_group;
-            self.insert_counter += 1;
-            self.memory[base] = Some(Box::new(SubTrie::new(None, depth, None, Some(self.insert_counter << KEY_GROUP))));
-        }
-        base = self.memory[base].as_ref().unwrap().children_offset.unwrap();
-
-//            old.unwrap().as_mut().depth = depth;
-        let old_key = old.as_ref().unwrap().key;
-        let old_data = old.as_ref().unwrap().data;
-        self.memory[base + old_key_group] = Some(Box::new(SubTrie::new(old_data, depth + 1, old_key, None)));
-
-        self.memory[base + new_key_group] = Some(Box::new(SubTrie::new(Some(value), depth + 1, Some(key), None)));
-    }
-
-    pub fn insert(&mut self, value: T, key: [u8; KEY_LEN]) {
-        let mut index = compute_index(&key);
-        let mut depth = 0;
-        let mut key_head = KEY_GROUP;
-        let current_clone = self.memory[index].clone();
-        match current_clone {
-            Some(ref c) => {
-                if c.data.is_none() { // data being none means we should find deeper
-                    let empty_slot_pair = self.find_empty_slot(&key, 0, 0);
-                    match empty_slot_pair.0 {
-                        // find the actual position for node if not conflict
-                        Some(id) => {
-                            self.memory[id] = Some(Box::new(SubTrie::new(Some(value), 0, Some(key), None)));
-                        },
-                        // else resolve it
-                        None => {
-                            self.resolve_conflict(value, key, empty_slot_pair.1.unwrap() << KEY_GROUP);
-                        }
-                    }
-                    println!("empty slot {:#?}", empty_slot_pair);
-
-                } else { // resolve conflict by allocate memory and node, but need to check if this is the level
-                    self.resolve_conflict(value, key, 0);
-                }
-            },
-            None => {
-                self.allocate_child_array();
-                self.memory[index] = Some(Box::new(SubTrie::new(Some(value), 0, Some(key), None)));
-            }
-        }
-    }
-}
+use test::Bencher;
+use std::usize;
+use std::collections::HashMap;
+use rand::{Rng, thread_rng};
 
 pub trait TrieData: Clone + Copy + Eq + PartialEq {}
 
 impl<T> TrieData for T where T: Clone + Copy + Eq + PartialEq {}
 
+const KEY_LEN: usize = 20;
+const KEY_GROUP: usize = 4;
+
+#[derive(Debug)]
+pub struct ContiguousTrie<T: TrieData> {
+    memory: Vec<Option<SubTrie<T>>>,
+}
+
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct SubTrie<T: TrieData> {
     pub data: Option<T>,
-    key: Option<[u8; KEY_LEN]>,
     depth: usize,
     children_offset: Option<usize>,    // the start position in allocator that place the array in hash trie
 }
 
+fn get_depth(index: usize) -> usize {
+    let mut depth = 0;
+    let mut multitude = KEY_LEN;
+    let mut compare = KEY_LEN;
 
-const KEY_LEN: usize = 16;
-const KEY_GROUP: usize = 4;
-
+    while index >= compare {
+        depth += 1;
+        multitude *= KEY_LEN;
+        compare += multitude;
+    }
+    depth
+}
 
 // return the index in the first <= 4 bits
 // for instances: 0000 0000 -> 0
@@ -152,36 +53,200 @@ fn compute_index(key: &[u8]) -> usize {
     return id as usize;
 }
 
-impl<T: TrieData> SubTrie<T> {
-    pub fn new(value: Option<T>, depth: usize, key: Option<[u8; KEY_LEN]>, children_offset: Option<usize>) -> Self {
-        SubTrie {
-            data: value,
-            depth,
-            key,
-            children_offset,
+// Since we have allocate a very large space for our hash in cctrie_contiguous
+// why do we deal with conflict anymore?
+// In this implementation, we
+impl<T: TrieData> ContiguousTrie<T> {
+    pub fn new() -> Self {
+        // init with three level of nodes
+        let level_zero_to_three = KEY_LEN + KEY_LEN * KEY_LEN + KEY_LEN * KEY_LEN * KEY_LEN;
+        let mut memory: Vec<Option<SubTrie<T>>> = Vec::with_capacity(level_zero_to_three);
+
+        for i in 0..level_zero_to_three {
+            let subtrie: SubTrie<T> = SubTrie {
+                data: None,
+                depth: get_depth(i),
+                children_offset: Some((i + 1) * KEY_LEN),
+            };
+            memory.push(Some(subtrie));
+        }
+
+        ContiguousTrie {
+            memory,
+        }
+    }
+
+    // key should be 1-1 mapping to self memory array
+    fn key2index(&self, key: &[u8]) -> usize {
+        let mut current_index = compute_index(key);
+        let mut key_start = 0;
+        while self.memory.len() > current_index && self.memory[current_index].is_some() {
+            match &self.memory[current_index] {
+                Some(a) => {
+                    match a.children_offset {
+                        Some(b) => {
+                            key_start += KEY_GROUP;
+                            current_index = b + compute_index(&key[key_start..]);
+//                            println!("comp_index {} ci {} {}", compute_index(&key[key_start..]), current_index, self.memory.len());
+                        }
+                        None => break,
+                    }
+                }
+                None => break,
+            }
+        }
+        current_index
+    }
+
+    pub fn insert(&mut self, value: T, key: &[u8]) {
+        let current_index = self.key2index(key);
+        if current_index >= self.memory.len() {
+//            println!("debug {} {}", current_index, self.memory.len());
+            let push_amount = current_index - self.memory.len() + 1;
+            for _ in 0..push_amount {
+                self.memory.push(None);
+            }
+        }
+        self.memory[current_index] = Some(SubTrie {
+            data: Some(value),
+            depth: get_depth(current_index),
+            children_offset: None,
+        });
+    }
+
+//    pub fn contain(&self, key: &usize) -> bool {
+//        match self.memory[*key] {
+//            Some(_) => true,
+//            None => false,
+//        }
+//    }
+
+    pub fn get(&self, key: &[u8]) -> Option<T> {
+        let current_index = self.key2index(key);
+        if self.memory.len() <= current_index {
+            return None;
+        }
+        match &self.memory[current_index] {
+            Some(a) => {
+                a.data
+            },
+            None => None,
         }
     }
 }
 
 #[test]
+fn test_new_contiguous_trie() {
+    let trie = ContiguousTrie::<usize>::new();
+}
+
+#[test]
 fn test_insert_contiguous_trie() {
-    let mut trie: ContiguousTrie<usize> = ContiguousTrie::new(100);
+    let mut trie = ContiguousTrie::<usize>::new();
     trie.insert(1, &"0000000000000000".to_owned().into_bytes());
-    trie.insert(2, &"0000000000000001".to_owned().into_bytes());
-    trie.insert(3, &"0000000000000010".to_owned().into_bytes());
-    println!("{:#?}", trie);
+    trie.insert(10, &"0000000000000001".to_owned().into_bytes());
+    trie.insert(100, &"0000000000000010".to_owned().into_bytes());
+    trie.insert(100, &"0000000000000011".to_owned().into_bytes());
+    trie.insert(1000, &"0000000000000100".to_owned().into_bytes());
+    trie.insert(344, &"0000100000000011".to_owned().into_bytes());
+    trie.insert(33, &"0000100000100011".to_owned().into_bytes());
+
+    assert_eq!(trie.get(&"0000000000000000".to_owned().into_bytes()).unwrap(), 1);
+    assert_eq!(trie.get(&"0000000000000001".to_owned().into_bytes()).unwrap(), 10);
+    assert_eq!(trie.get(&"0000000000000010".to_owned().into_bytes()).unwrap(), 100);
+    assert_eq!(trie.get(&"0000000000000011".to_owned().into_bytes()).unwrap(), 100);
+    assert_eq!(trie.get(&"0000000000000100".to_owned().into_bytes()).unwrap(), 1000);
+    assert_eq!(trie.get(&"0000100000000011".to_owned().into_bytes()).unwrap(), 344);
+    assert_eq!(trie.get(&"0000100000100011".to_owned().into_bytes()).unwrap(), 33);
 }
 
 
+#[test]
+fn test_get_contiguous_trie() {
+    let mut trie = ContiguousTrie::<&str>::new();
+    trie.insert("abc", &"0000000000000000".to_owned().into_bytes());
+    trie.insert("cde", &"0000000000000001".to_owned().into_bytes());
+
+    let a = trie.get(&"0000000000000000".to_owned().into_bytes());
+    let ab = trie.get(&"0000000000000001".to_owned().into_bytes());
+    assert_eq!(a.unwrap(), "abc");
+    assert_ne!(ab.unwrap(), "abc");
+}
+
+#[test]
+fn test_large_consecutive_insert() {
+    let mut trie = ContiguousTrie::<usize>::new();
+
+    for i in 0..65536 {
+        let str = format!("{:#018b}", i);
+        let arr = str.to_owned().into_bytes();
+        trie.insert(i, &arr[2..]);
+    }
+
+    for i in 0..65536 {
+        let str = format!("{:#018b}", i);
+        let arr = str.to_owned().into_bytes();
+        assert_eq!(trie.get(&arr[2..]).unwrap(), i);
+    }
+}
+
+//#[bench]
+//fn bench_large_size_trie(b: &mut Bencher) {
+//    let mut trie = ContiguousTrie::<usize>::new();
+//    let range = 2usize.pow(KEY_LEN);
+//    for i in 0..range {
+//        trie.insert(i, &i);
+//    }
+//    b.iter(|| {
+//        for i in 0..range {
+//            let g = trie.get(&i);
+//        }
+//    });
+//}
+//
+//
+//#[bench]
+//fn bench_large_size_reverse_trie(b: &mut Bencher) {
+//    let mut trie = ContiguousTrie::<usize>::new();
+//    let range = 2usize.pow(KEY_LEN);
+//    for i in 0..range {
+//        trie.insert(i, &i);
+//    }
+//    b.iter(|| {
+//        for i in 1..range {
+//            let x = range - i - 1;
+//            let g = trie.get(&x);
+//        }
+//    });
+//}
+//
+//#[bench]
+//fn bench_large_size_hashmap(b: &mut Bencher) {
+//    let mut hash = HashMap::new();
+//    let range = 2usize.pow(KEY_LEN);
+//    for i in 0..range {
+//        hash.insert(i as usize, i as usize);
+//    }
+//    b.iter(|| {
+//        for i in 0..range {
+//            let g = hash.get(&i);
+//        }
+//    });
+//}
+
 fn main() {
-    let mut trie: ContiguousTrie<usize> = ContiguousTrie::new(65536);
-    let a: [u8; KEY_LEN] = [48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48];
-    let b: [u8; KEY_LEN] = [48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 49];
-    let c: [u8; KEY_LEN] = [48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 49, 48];
-    let d: [u8; KEY_LEN] = [48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 49, 49];
-    trie.insert(1, a);
-    trie.insert(2, b);
-    trie.insert(3, c);
-    trie.insert(4, d);
-    println!("{:#?}", trie);
+    let mut trie = ContiguousTrie::<usize>::new();
+
+    for i in 0..65535 {
+        let str = format!("{:#020b}", i);
+        let arr = str.to_owned().into_bytes();
+        println!("{:?}", arr);
+        trie.insert(i, &arr[2..]);
+    }
+
+    for i in 0..65535 {
+        let str = format!("{:#020b}", i);
+        let arr = str.to_owned().into_bytes();
+        assert_eq!(trie.get(&arr[2..]).unwrap(), i);
+    }
 }
