@@ -61,9 +61,9 @@ impl<T: TrieData> Trie<T> {
                 self.children[index] = Some(Box::new(Trie::new()));
             }
             let value = match key.len() {
-                n if n >= KEY_GROUP =>{
+                n if n >= KEY_GROUP => {
                     self.children[index].as_mut().map(|ref mut a| a.insert(value, &key[KEY_GROUP..])).unwrap_or(0)
-                },
+                }
                 _ => 9999,  // TODO value should be Option
             };
             self.depth += value;

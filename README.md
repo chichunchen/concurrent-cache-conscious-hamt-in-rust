@@ -40,3 +40,15 @@ test bench_million_get_trie       ... bench:  36,220,772 ns/iter (+/- 9,297,379)
 test bench_10_million_get_hashmap ... bench: 940,628,261 ns/iter (+/- 168,047,539)
 test bench_10_million_get_trie    ... bench: 386,848,363 ns/iter (+/- 114,999,290)
 ```
+- KEY_LENGTH=28
+- opt=3
+```
+test bench_1k_get_hashmap         ... bench:      18,650 ns/iter (+/- 3,160)
+test bench_1k_get_trie            ... bench:      53,035 ns/iter (+/- 8,726)
+test bench_100k_get_hashmap       ... bench:   4,361,956 ns/iter (+/- 1,323,714)
+test bench_100k_get_trie          ... bench:   5,574,079 ns/iter (+/- 2,566,200)
+test bench_million_get_hashmap    ... bench:  47,687,657 ns/iter (+/- 29,172,924)
+test bench_million_get_trie       ... bench:  56,702,678 ns/iter (+/- 15,974,176)
+test bench_10_million_get_hashmap ... bench: 950,166,810 ns/iter (+/- 197,380,886)
+test bench_10_million_get_trie    ... bench: 562,632,831 ns/iter (+/- 114,742,120)
+```
