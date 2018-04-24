@@ -1,5 +1,6 @@
 #![feature(test)]
 
+#[macro_use]
 extern crate cchamt;
 
 extern crate test;
@@ -19,7 +20,7 @@ fn bench_1k_get_trie(b: &mut Bencher) {
     let range = 1000;
 
     for i in 0..range {
-        let str = format!("{:#026b}", i);
+        let str = binary_format!(i);
         let arr = str.to_owned().into_bytes();
         v.push(arr.clone());
         trie.insert(i, &arr[2..]);
@@ -54,7 +55,7 @@ fn bench_100k_get_trie(b: &mut Bencher) {
     let range = 100000;
 
     for i in 0..range {
-        let str = format!("{:#026b}", i);
+        let str = binary_format!(i);
         let arr = str.to_owned().into_bytes();
         v.push(arr.clone());
         trie.insert(i, &arr[2..]);
@@ -89,7 +90,7 @@ fn bench_million_get_trie(b: &mut Bencher) {
     let range = 1000000;
 
     for i in 0..range {
-        let str = format!("{:#026b}", i);
+        let str = binary_format!(i);
         let arr = str.to_owned().into_bytes();
         v.push(arr.clone());
         trie.insert(i, &arr[2..]);
@@ -125,7 +126,7 @@ fn bench_10million_get_trie(b: &mut Bencher) {
     let range = 10000000;
 
     for i in 0..range {
-        let str = format!("{:#026b}", i);
+        let str = binary_format!(i);
         let arr = str.to_owned().into_bytes();
         v.push(arr.clone());
         trie.insert(i, &arr[2..]);

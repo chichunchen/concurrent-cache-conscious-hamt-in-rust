@@ -150,17 +150,22 @@ impl<T: TrieData> ContiguousTrie<T> {
     }
 }
 
+#[macro_export]
+macro_rules! binary_format {
+    ($x:expr) => {format!("{:#026b}", $x)};
+}
+
 fn main() {
     let mut trie = ContiguousTrie::<usize>::new();
 
     for i in 0..1000000 {
-        let str = format!("{:#026b}", i);
+        let str = binary_format!(i);
         let arr = str.to_owned().into_bytes();
         trie.insert(i, &arr[2..]);
     }
 
     for i in 0..1000000 {
-        let str = format!("{:#026b}", i);
+        let str = binary_format!(i);
         let arr = str.to_owned().into_bytes();
         assert_eq!(trie.get(&arr[2..]).unwrap(), i);
     }

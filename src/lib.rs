@@ -1,7 +1,3 @@
-#![feature(ptr_internals)]
-#![feature(allocator_api)]
-#![feature(unique)]
-#![feature(slice_get_slice)]
 #![feature(test)]
 #![allow(warnings)]
 
