@@ -190,28 +190,136 @@ fn test_very_large_consecutive_insert() {
 }
 
 #[bench]
-fn bench_large_size_trie(b: &mut Bencher) {
+fn bench_1k_get_trie(b: &mut Bencher) {
     let mut trie = ContiguousTrie::<usize>::new();
+    let mut v: Vec<Vec<u8>> = Vec::new();
+    let range = 1000;
 
-    for i in 0..1000000 {
+    for i in 0..range {
         let str = format!("{:#026b}", i);
         let arr = str.to_owned().into_bytes();
+        v.push(arr.clone());
         trie.insert(i, &arr[2..]);
     }
 
     b.iter(|| {
-        for i in 0..1000000 {
-            let str = format!("{:#026b}", i);
-            let arr = str.to_owned().into_bytes();
+        for i in 0..range {
+            let g = trie.get(&v[i][2..]);
         }
     });
 }
 
 
 #[bench]
-fn bench_large_size_hashmap(b: &mut Bencher) {
+fn bench_1k_get_hashmap(b: &mut Bencher) {
     let mut hash = HashMap::new();
+    let range = 1000;
+    for i in 0..range {
+        hash.insert(i as usize, i as usize);
+    }
+    b.iter(|| {
+        for i in 0..range {
+            let g = hash.get(&i);
+        }
+    });
+}
+
+#[bench]
+fn bench_100k_get_trie(b: &mut Bencher) {
+    let mut trie = ContiguousTrie::<usize>::new();
+    let mut v: Vec<Vec<u8>> = Vec::new();
+    let range = 100000;
+
+    for i in 0..range {
+        let str = format!("{:#026b}", i);
+        let arr = str.to_owned().into_bytes();
+        v.push(arr.clone());
+        trie.insert(i, &arr[2..]);
+    }
+
+    b.iter(|| {
+        for i in 0..range {
+            let g = trie.get(&v[i][2..]);
+        }
+    });
+}
+
+
+#[bench]
+fn bench_100k_get_hashmap(b: &mut Bencher) {
+    let mut hash = HashMap::new();
+    let range = 100000;
+    for i in 0..range {
+        hash.insert(i as usize, i as usize);
+    }
+    b.iter(|| {
+        for i in 0..range {
+            let g = hash.get(&i);
+        }
+    });
+}
+
+#[bench]
+fn bench_million_get_trie(b: &mut Bencher) {
+    let mut trie = ContiguousTrie::<usize>::new();
+    let mut v: Vec<Vec<u8>> = Vec::new();
     let range = 1000000;
+
+    for i in 0..range {
+        let str = format!("{:#026b}", i);
+        let arr = str.to_owned().into_bytes();
+        v.push(arr.clone());
+        trie.insert(i, &arr[2..]);
+    }
+
+    b.iter(|| {
+        for i in 0..range {
+            let g = trie.get(&v[i][2..]);
+        }
+    });
+}
+
+
+#[bench]
+fn bench_million_get_hashmap(b: &mut Bencher) {
+    let mut hash = HashMap::new();
+    let range = 10000000;
+    for i in 0..range {
+        hash.insert(i as usize, i as usize);
+    }
+    b.iter(|| {
+        for i in 0..range {
+            let g = hash.get(&i);
+        }
+    });
+}
+
+
+#[bench]
+fn bench_10million_get_trie(b: &mut Bencher) {
+    let mut trie = ContiguousTrie::<usize>::new();
+    let mut v: Vec<Vec<u8>> = Vec::new();
+    let range = 10000000;
+
+    for i in 0..range {
+        let str = format!("{:#026b}", i);
+        let arr = str.to_owned().into_bytes();
+        v.push(arr.clone());
+        trie.insert(i, &arr[2..]);
+    }
+
+    b.iter(|| {
+        for i in 0..range {
+            let g = trie.get(&v[i][2..]);
+        }
+    });
+}
+
+
+#[bench]
+fn bench_10million_get_hashmap(b: &mut Bencher) {
+    let mut hash = HashMap::new();
+    let range = 10000000;
     for i in 0..range {
         hash.insert(i as usize, i as usize);
     }

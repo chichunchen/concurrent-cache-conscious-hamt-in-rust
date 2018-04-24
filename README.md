@@ -8,11 +8,10 @@
 
 ## TODO
 - [X] Trie
-    - [X] Insert, Get, Contain, Update (mutable insert)
-    - [X] Delete key
+- [X] Contiguous Trie
 - [ ] Benchmark
-    - [ ] Compare the cctrie with vec, cctrie with allocate, and Rust HashMap
-- [ ] Data Layout
+    - [ ] Bench with different size (such as 1k, 10k, 1m, 10m...)
+    - [ ] Bench with different size on different amount of threads
 - [ ] Concurrent by lock
 - [ ] Concurrent by lock-free
 - [ ] Every kind of optimization
