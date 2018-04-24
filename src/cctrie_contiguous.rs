@@ -12,7 +12,7 @@ pub trait TrieData: Clone + Copy + Eq + PartialEq {}
 
 impl<T> TrieData for T where T: Clone + Copy + Eq + PartialEq {}
 
-const KEY_LEN: usize = 20;
+const KEY_LEN: usize = 24;
 const KEY_GROUP: usize = 4;
 
 #[derive(Debug)]
@@ -123,12 +123,18 @@ impl<T: TrieData> ContiguousTrie<T> {
         });
     }
 
-//    pub fn contain(&self, key: &usize) -> bool {
-//        match self.memory[*key] {
-//            Some(_) => true,
-//            None => false,
-//        }
-//    }
+    pub fn contain(&self, key: &[u8]) -> bool {
+        let current_index = self.key2index(key);
+        if self.memory.len() <= current_index {
+            return false;
+        }
+        match &self.memory[current_index] {
+            Some(a) => {
+                true
+            },
+            None => false,
+        }
+    }
 
     pub fn get(&self, key: &[u8]) -> Option<T> {
         let current_index = self.key2index(key);
@@ -150,50 +156,17 @@ fn test_new_contiguous_trie() {
 }
 
 #[test]
-fn test_insert_contiguous_trie() {
-    let mut trie = ContiguousTrie::<usize>::new();
-    trie.insert(1, &"0000000000000000".to_owned().into_bytes());
-    trie.insert(10, &"0000000000000001".to_owned().into_bytes());
-    trie.insert(100, &"0000000000000010".to_owned().into_bytes());
-    trie.insert(100, &"0000000000000011".to_owned().into_bytes());
-    trie.insert(1000, &"0000000000000100".to_owned().into_bytes());
-    trie.insert(344, &"0000100000000011".to_owned().into_bytes());
-    trie.insert(33, &"0000100000100011".to_owned().into_bytes());
-
-    assert_eq!(trie.get(&"0000000000000000".to_owned().into_bytes()).unwrap(), 1);
-    assert_eq!(trie.get(&"0000000000000001".to_owned().into_bytes()).unwrap(), 10);
-    assert_eq!(trie.get(&"0000000000000010".to_owned().into_bytes()).unwrap(), 100);
-    assert_eq!(trie.get(&"0000000000000011".to_owned().into_bytes()).unwrap(), 100);
-    assert_eq!(trie.get(&"0000000000000100".to_owned().into_bytes()).unwrap(), 1000);
-    assert_eq!(trie.get(&"0000100000000011".to_owned().into_bytes()).unwrap(), 344);
-    assert_eq!(trie.get(&"0000100000100011".to_owned().into_bytes()).unwrap(), 33);
-}
-
-
-#[test]
-fn test_get_contiguous_trie() {
-    let mut trie = ContiguousTrie::<&str>::new();
-    trie.insert("abc", &"0000000000000000".to_owned().into_bytes());
-    trie.insert("cde", &"0000000000000001".to_owned().into_bytes());
-
-    let a = trie.get(&"0000000000000000".to_owned().into_bytes());
-    let ab = trie.get(&"0000000000000001".to_owned().into_bytes());
-    assert_eq!(a.unwrap(), "abc");
-    assert_ne!(ab.unwrap(), "abc");
-}
-
-#[test]
 fn test_large_consecutive_insert() {
     let mut trie = ContiguousTrie::<usize>::new();
 
     for i in 0..65536 {
-        let str = format!("{:#018b}", i);
+        let str = format!("{:#026b}", i);
         let arr = str.to_owned().into_bytes();
         trie.insert(i, &arr[2..]);
     }
 
     for i in 0..65536 {
-        let str = format!("{:#018b}", i);
+        let str = format!("{:#026b}", i);
         let arr = str.to_owned().into_bytes();
         assert_eq!(trie.get(&arr[2..]).unwrap(), i);
     }
@@ -204,73 +177,62 @@ fn test_very_large_consecutive_insert() {
     let mut trie = ContiguousTrie::<usize>::new();
 
     for i in 0..1000000 {
-        let str = format!("{:#022b}", i);
+        let str = format!("{:#026b}", i);
         let arr = str.to_owned().into_bytes();
         trie.insert(i, &arr[2..]);
     }
 
     for i in 0..1000000 {
-        let str = format!("{:#022b}", i);
+        let str = format!("{:#026b}", i);
         let arr = str.to_owned().into_bytes();
         assert_eq!(trie.get(&arr[2..]).unwrap(), i);
     }
 }
 
-//#[bench]
-//fn bench_large_size_trie(b: &mut Bencher) {
-//    let mut trie = ContiguousTrie::<usize>::new();
-//    let range = 2usize.pow(KEY_LEN);
-//    for i in 0..range {
-//        trie.insert(i, &i);
-//    }
-//    b.iter(|| {
-//        for i in 0..range {
-//            let g = trie.get(&i);
-//        }
-//    });
-//}
-//
-//
-//#[bench]
-//fn bench_large_size_reverse_trie(b: &mut Bencher) {
-//    let mut trie = ContiguousTrie::<usize>::new();
-//    let range = 2usize.pow(KEY_LEN);
-//    for i in 0..range {
-//        trie.insert(i, &i);
-//    }
-//    b.iter(|| {
-//        for i in 1..range {
-//            let x = range - i - 1;
-//            let g = trie.get(&x);
-//        }
-//    });
-//}
-//
-//#[bench]
-//fn bench_large_size_hashmap(b: &mut Bencher) {
-//    let mut hash = HashMap::new();
-//    let range = 2usize.pow(KEY_LEN);
-//    for i in 0..range {
-//        hash.insert(i as usize, i as usize);
-//    }
-//    b.iter(|| {
-//        for i in 0..range {
-//            let g = hash.get(&i);
-//        }
-//    });
-//}
+#[bench]
+fn bench_large_size_trie(b: &mut Bencher) {
+    let mut trie = ContiguousTrie::<usize>::new();
+
+    for i in 0..1000000 {
+        let str = format!("{:#026b}", i);
+        let arr = str.to_owned().into_bytes();
+        trie.insert(i, &arr[2..]);
+    }
+
+    b.iter(|| {
+        for i in 0..1000000 {
+            let str = format!("{:#026b}", i);
+            let arr = str.to_owned().into_bytes();
+        }
+    });
+}
+
+
+#[bench]
+fn bench_large_size_hashmap(b: &mut Bencher) {
+    let mut hash = HashMap::new();
+    let range = 1000000;
+    for i in 0..range {
+        hash.insert(i as usize, i as usize);
+    }
+    b.iter(|| {
+        for i in 0..range {
+            let g = hash.get(&i);
+        }
+    });
+}
 
 fn main() {
     let mut trie = ContiguousTrie::<usize>::new();
 
     for i in 0..1000000 {
-        let str = format!("{:#022b}", i);
+        let str = format!("{:#026b}", i);
         let arr = str.to_owned().into_bytes();
         trie.insert(i, &arr[2..]);
     }
 
     for i in 0..1000000 {
-        let str = format!("{:#022b}", i);
+        let str = format!("{:#026b}", i);
         let arr = str.to_owned().into_bytes();
         assert_eq!(trie.get(&arr[2..]).unwrap(), i);
     }
