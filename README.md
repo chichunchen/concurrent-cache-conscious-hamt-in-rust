@@ -11,6 +11,7 @@
 - [X] Contiguous Trie
 - [ ] Benchmark
     - [ ] Bench with different size (such as 1k, 10k, 1m, 10m...)
+    - [ ] Bench with different Key Length (16, 20, 24, 28, 32..., 28 and 32 may need lots of disk space)
     - [ ] Bench with different reading sequence (now is consecutively, should try others)
     - [ ] Bench with different size on different amount of threads
 - [ ] Concurrent by lock
@@ -18,6 +19,7 @@
 - [ ] Every kind of optimization
 
 ## Bench
+- KEY_LENGTH=24
 ```
 test cctrie_contiguous::bench_1k_get_hashmap        ... bench:        23,076 ns/iter (+/- 8,118)
 test cctrie_contiguous::bench_1k_get_trie           ... bench:        34,739 ns/iter (+/- 9,631)
