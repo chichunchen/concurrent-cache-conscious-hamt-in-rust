@@ -59,10 +59,16 @@ fn compute_index(key: &[u8]) -> usize {
 impl<T: TrieData> ContiguousTrie<T> {
     pub fn new() -> Self {
         // init with three level of nodes
-        let level_zero_to_three = KEY_LEN + KEY_LEN * KEY_LEN + KEY_LEN * KEY_LEN * KEY_LEN;
-        let mut memory: Vec<Option<SubTrie<T>>> = Vec::with_capacity(level_zero_to_three);
+        let mut nodes_length = 0;   // = KEY_LEN + KEY_LEN * KEY_LEN + KEY_LEN * KEY_LEN * KEY_LEN;
+        // 16,4 -> 0,1,2
+        let mut multitude = KEY_LEN;
+        for i in 0..(KEY_LEN/KEY_GROUP - 1) {
+            nodes_length += multitude;
+            multitude *= KEY_LEN;
+        }
+        let mut memory: Vec<Option<SubTrie<T>>> = Vec::with_capacity(nodes_length);
 
-        for i in 0..level_zero_to_three {
+        for i in 0..nodes_length {
             let subtrie: SubTrie<T> = SubTrie {
                 data: None,
                 depth: get_depth(i),
@@ -106,6 +112,9 @@ impl<T: TrieData> ContiguousTrie<T> {
             for _ in 0..push_amount {
                 self.memory.push(None);
             }
+        }
+        if self.memory[current_index].is_some() {
+            assert!(false);
         }
         self.memory[current_index] = Some(SubTrie {
             data: Some(value),
@@ -190,6 +199,23 @@ fn test_large_consecutive_insert() {
     }
 }
 
+#[test]
+fn test_very_large_consecutive_insert() {
+    let mut trie = ContiguousTrie::<usize>::new();
+
+    for i in 0..1000000 {
+        let str = format!("{:#022b}", i);
+        let arr = str.to_owned().into_bytes();
+        trie.insert(i, &arr[2..]);
+    }
+
+    for i in 0..1000000 {
+        let str = format!("{:#022b}", i);
+        let arr = str.to_owned().into_bytes();
+        assert_eq!(trie.get(&arr[2..]).unwrap(), i);
+    }
+}
+
 //#[bench]
 //fn bench_large_size_trie(b: &mut Bencher) {
 //    let mut trie = ContiguousTrie::<usize>::new();
@@ -237,15 +263,14 @@ fn test_large_consecutive_insert() {
 fn main() {
     let mut trie = ContiguousTrie::<usize>::new();
 
-    for i in 0..65535 {
-        let str = format!("{:#020b}", i);
+    for i in 0..1000000 {
+        let str = format!("{:#022b}", i);
         let arr = str.to_owned().into_bytes();
-        println!("{:?}", arr);
         trie.insert(i, &arr[2..]);
     }
 
-    for i in 0..65535 {
-        let str = format!("{:#020b}", i);
+    for i in 0..1000000 {
+        let str = format!("{:#022b}", i);
         let arr = str.to_owned().into_bytes();
         assert_eq!(trie.get(&arr[2..]).unwrap(), i);
     }
