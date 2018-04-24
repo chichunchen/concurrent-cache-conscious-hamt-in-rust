@@ -12,7 +12,7 @@ pub trait TrieData: Clone + Copy + Eq + PartialEq {}
 
 impl<T> TrieData for T where T: Clone + Copy + Eq + PartialEq {}
 
-const KEY_LEN: usize = 24;
+const KEY_LEN: usize = 28;
 const KEY_GROUP: usize = 4;
 
 #[derive(Debug)]
@@ -152,7 +152,10 @@ impl<T: TrieData> ContiguousTrie<T> {
 
 #[macro_export]
 macro_rules! binary_format {
-    ($x:expr) => {format!("{:#026b}", $x)};
+    ($x:expr) => {
+//        let pattern = format!("0{}b", KEY_LEN + 2);
+        format!("{:#026b}", $x)
+    };
 }
 
 fn main() {
