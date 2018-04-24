@@ -1,3 +1,5 @@
+#![feature(test)]
+
 extern crate cchamt;
 
 use cchamt::{Trie, IndexStatus};

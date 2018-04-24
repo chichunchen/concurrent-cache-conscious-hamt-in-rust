@@ -11,7 +11,3 @@ rayon="1.0.1"
 [lib]
 name = "cchamt"
 path = "src/lib.rs"
-
-[[bin]]
-name = "cchamt"
-path = "src/cctrie_contiguous.rs"
