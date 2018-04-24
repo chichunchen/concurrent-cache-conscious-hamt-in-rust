@@ -1,6 +1,6 @@
 use rand::{Rng, thread_rng};
 use test::Bencher;
-use cctrie_contiguous::SubTrie;
+use contiguous_cctrie::SubTrie;
 use std::collections::HashMap;
 use chashmap::CHashMap;
 use std::thread;

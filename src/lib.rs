@@ -12,8 +12,8 @@ extern crate chashmap;
 extern crate rayon;
 
 mod cctrie;
-mod cctrie_contiguous;
+mod contiguous_cctrie;
 mod bench;
 
 pub use cctrie::{Trie, TrieData, IndexStatus};
-pub use cctrie_contiguous::{ContiguousTrie};
+pub use contiguous_cctrie::{ContiguousTrie};

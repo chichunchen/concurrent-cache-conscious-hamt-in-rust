@@ -143,7 +143,7 @@ fn bench_million_get_trie(b: &mut Bencher) {
 #[bench]
 fn bench_million_get_hashmap(b: &mut Bencher) {
     let mut hash = HashMap::new();
-    let range = 10000000;
+    let range = 1000000;
     for i in 0..range {
         hash.insert(i as usize, i as usize);
     }
