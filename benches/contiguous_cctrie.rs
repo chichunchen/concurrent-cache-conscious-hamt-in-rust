@@ -120,7 +120,7 @@ fn bench_million_get_hashmap(b: &mut Bencher) {
 
 
 #[bench]
-fn bench_10million_get_trie(b: &mut Bencher) {
+fn bench_10_million_get_trie(b: &mut Bencher) {
     let mut trie = ContiguousTrie::<usize>::new();
     let mut v: Vec<Vec<u8>> = Vec::new();
     let range = 10000000;
@@ -141,7 +141,7 @@ fn bench_10million_get_trie(b: &mut Bencher) {
 
 
 #[bench]
-fn bench_10million_get_hashmap(b: &mut Bencher) {
+fn bench_10_million_get_hashmap(b: &mut Bencher) {
     let mut hash = HashMap::new();
     let range = 10000000;
     for i in 0..range {

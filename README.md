@@ -20,6 +20,7 @@
 
 ## Bench
 - KEY_LENGTH=24
+- opt=0
 ```
 test cctrie_contiguous::bench_1k_get_hashmap        ... bench:        23,076 ns/iter (+/- 8,118)
 test cctrie_contiguous::bench_1k_get_trie           ... bench:        34,739 ns/iter (+/- 9,631)
@@ -27,4 +28,15 @@ test cctrie_contiguous::bench_100k_get_hashmap      ... bench:     4,984,978 ns/
 test cctrie_contiguous::bench_100k_get_trie         ... bench:     3,545,234 ns/iter (+/- 1,194,679)
 test cctrie_contiguous::bench_10million_get_hashmap ... bench: 1,223,923,991 ns/iter (+/- 251,666,506)
 test cctrie_contiguous::bench_10million_get_trie    ... bench:   391,523,171 ns/iter (+/- 164,836,998)
+```
+- opt=3
+```release
+test bench_1k_get_hashmap         ... bench:      16,833 ns/iter (+/- 3,661)
+test bench_1k_get_trie            ... bench:      31,253 ns/iter (+/- 5,836)
+test bench_100k_get_hashmap       ... bench:   3,451,567 ns/iter (+/- 682,286)
+test bench_100k_get_trie          ... bench:   3,656,802 ns/iter (+/- 778,616)
+test bench_million_get_hashmap    ... bench:  45,478,866 ns/iter (+/- 29,094,426)
+test bench_million_get_trie       ... bench:  36,220,772 ns/iter (+/- 9,297,379)
+test bench_10_million_get_hashmap ... bench: 940,628,261 ns/iter (+/- 168,047,539)
+test bench_10_million_get_trie    ... bench: 386,848,363 ns/iter (+/- 114,999,290)
 ```

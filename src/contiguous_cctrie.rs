@@ -1,18 +1,8 @@
-#![feature(test)]
-
-extern crate test;
-extern crate rand;
-
-use test::Bencher;
-use std::usize;
-use std::collections::HashMap;
-use rand::{Rng, thread_rng};
-
 pub trait TrieData: Clone + Copy + Eq + PartialEq {}
 
 impl<T> TrieData for T where T: Clone + Copy + Eq + PartialEq {}
 
-const KEY_LEN: usize = 28;
+const KEY_LEN: usize = 24;
 const KEY_GROUP: usize = 4;
 
 #[derive(Debug)]
@@ -28,6 +18,8 @@ pub struct SubTrie<T: TrieData> {
     children_offset: Option<usize>,    // the start position in allocator that place the array in hash trie
 }
 
+// compute the depth in the trie using the array index of trie.memory
+#[inline(always)]
 fn get_depth(index: usize) -> usize {
     let mut depth = 0;
     let mut multitude = KEY_LEN;
@@ -43,6 +35,7 @@ fn get_depth(index: usize) -> usize {
 
 // return the index in the first <= 4 bits
 // for instances: 0000 0000 -> 0
+#[inline(always)]
 fn compute_index(key: &[u8]) -> usize {
     let mut id = 0;
     let length = if key.len() > KEY_GROUP { KEY_GROUP } else { key.len() };
@@ -53,28 +46,29 @@ fn compute_index(key: &[u8]) -> usize {
     return id as usize;
 }
 
-// Since we have allocate a very large space for our hash in cctrie_contiguous
-// why do we deal with conflict anymore?
-// In this implementation, we
+// Contiguous store all the nodes contiguous with the sequential order of key
 impl<T: TrieData> ContiguousTrie<T> {
     pub fn new() -> Self {
-        // init with three level of nodes
-        let mut nodes_length = 0;   // = KEY_LEN + KEY_LEN * KEY_LEN + KEY_LEN * KEY_LEN * KEY_LEN;
-        // 16,4 -> 0,1,2
-        let mut multitude = KEY_LEN;
-        for i in 0..(KEY_LEN/KEY_GROUP - 1) {
-            nodes_length += multitude;
-            multitude *= KEY_LEN;
-        }
-        let mut memory: Vec<Option<SubTrie<T>>> = Vec::with_capacity(nodes_length);
+        let mut memory: Vec<Option<SubTrie<T>>>;
+        // init with all nodes that is not leaf
+        // length = summation of KEY_LEN^1 to KEY_LEN^(KEY_LEN/KEY_GROUP-1)
+        {
+            let mut nodes_length = 0;
+            let mut multitude = KEY_LEN;
+            for _ in 0..(KEY_LEN / KEY_GROUP - 1) {
+                nodes_length += multitude;
+                multitude *= KEY_LEN;
+            }
+            memory = Vec::with_capacity(nodes_length);
 
-        for i in 0..nodes_length {
-            let subtrie: SubTrie<T> = SubTrie {
-                data: None,
-                depth: get_depth(i),
-                children_offset: Some((i + 1) * KEY_LEN),
-            };
-            memory.push(Some(subtrie));
+            for i in 0..nodes_length {
+                let subtrie: SubTrie<T> = SubTrie {
+                    data: None,
+                    depth: get_depth(i),
+                    children_offset: Some((i + 1) * KEY_LEN),
+                };
+                memory.push(Some(subtrie));
+            }
         }
 
         ContiguousTrie {
@@ -129,9 +123,9 @@ impl<T: TrieData> ContiguousTrie<T> {
             return false;
         }
         match &self.memory[current_index] {
-            Some(a) => {
+            Some(_) => {
                 true
-            },
+            }
             None => false,
         }
     }
@@ -144,7 +138,7 @@ impl<T: TrieData> ContiguousTrie<T> {
         match &self.memory[current_index] {
             Some(a) => {
                 a.data
-            },
+            }
             None => None,
         }
     }
@@ -153,7 +147,6 @@ impl<T: TrieData> ContiguousTrie<T> {
 #[macro_export]
 macro_rules! binary_format {
     ($x:expr) => {
-//        let pattern = format!("0{}b", KEY_LEN + 2);
         format!("{:#026b}", $x)
     };
 }
