@@ -114,7 +114,7 @@ impl<T: TrieData> ContiguousTrie<T> {
         current_index
     }
 
-    pub fn insert(&mut self, value: T, key: &[u8]) {
+    pub fn insert(&self, value: T, key: &[u8]) {
         let current_index = self.key2index(key);
         let mut this = self.memory.lock().unwrap();
 //        println!("debug {} {}", current_index, self.memory.len());
@@ -176,18 +176,22 @@ macro_rules! binary_format {
 
 
 fn main() {
-    let mut trie = ContiguousTrie::<usize>::new(32, 8);
-
-    for i in 0..100000 {
-        let str = binary_format!(i);
-        let arr = str.to_owned().into_bytes();
-        trie.insert(i, &arr[2..]);
+    let trie = Arc::new(ContiguousTrie::<usize>::new(32, 8));
+    for t_id in 0..4 {
+		let trie = trie.clone();
+        let begin = t_id * 25000;
+        let end = (t_id + 1) * 25000;
+        thread::spawn(move || {
+            for i in begin..end {
+                let str = binary_format!(i);
+                let arr = str.to_owned().into_bytes();
+				trie.insert(i, &arr[2..]);
+            }
+        });
     }
 
-    let origin_trie = Arc::new(trie);
-
     for t_id in 0..4 {
-        let thread_trie = origin_trie.clone();
+        let thread_trie = trie.clone();
         let begin = t_id * 25000;
         let end = (t_id + 1) * 25000;
         thread::spawn(move || {
@@ -196,7 +200,6 @@ fn main() {
                 let arr = str.to_owned().into_bytes();
                 assert_eq!(thread_trie.get(&arr[2..]).unwrap(), i);
             }
-
         });
     }
 }
