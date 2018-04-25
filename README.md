@@ -15,6 +15,10 @@
     - [ ] Bench with different reading sequence (now is consecutively, should try others)
     - [ ] Bench with different size on different amount of threads
 - [ ] Concurrent by lock
+    - [x] Mutex per trie
+    - [x] RwLock per trie
+    - [ ] Mutex per element
+    - [ ] RwLock per element
 - [ ] Concurrent by lock-free
 - [ ] Every kind of optimization
 
