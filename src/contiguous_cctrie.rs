@@ -1,3 +1,6 @@
+use std::sync::{Arc, Mutex};
+use std::thread;
+
 pub trait TrieData: Clone + Copy + Eq + PartialEq {}
 
 impl<T> TrieData for T where T: Clone + Copy + Eq + PartialEq {}
@@ -23,7 +26,7 @@ fn get_depth(key_group: usize, index: usize) -> usize {
 /// Core Data structure
 #[derive(Debug)]
 pub struct ContiguousTrie<T: TrieData> {
-    memory: Vec<Option<SubTrie<T>>>,
+    memory: Arc<Mutex<Vec<Option<SubTrie<T>>>>>,
     key_length: usize,
     key_segment_size: usize,
 }
@@ -41,7 +44,7 @@ impl<T: TrieData> ContiguousTrie<T> {
     pub fn new(key_length: usize, key_segment_size: usize) -> Self {
         assert_eq!(key_length % key_segment_size, 0);
 
-        let mut memory: Vec<Option<SubTrie<T>>>;
+        let memory: Arc<Mutex<Vec<Option<SubTrie<T>>>>>;
         // init with all nodes that is not leaf
         // length = summation of KEY_LEN^1 to KEY_LEN^(KEY_LEN/KEY_GROUP-1)
         {
@@ -53,10 +56,11 @@ impl<T: TrieData> ContiguousTrie<T> {
                 multitude *= array_length;
             }
 //            println!("nl {}", nodes_length);
-            memory = Vec::with_capacity(nodes_length);
+            memory = Arc::new(Mutex::new(Vec::with_capacity(nodes_length)));
 
+            let mut this = memory.lock().unwrap();
             for i in 0..nodes_length {
-                memory.push(Some(SubTrie {
+                (*this).push(Some(SubTrie {
                     data: None,
 //                    depth: get_depth(key_segment_size as usize, i),
                     depth: 0,
@@ -91,9 +95,10 @@ impl<T: TrieData> ContiguousTrie<T> {
     fn key2index(&self, key: &[u8]) -> usize {
         let mut current_index = self.compute_index(key);
         let mut key_start = 0;
-        while self.memory.len() > current_index && self.memory[current_index].is_some() {
+        let mut this = self.memory.lock().unwrap();
+        while (*this).len() > current_index && (*this)[current_index].is_some() {
 //            println!("comp_index {} ci {} {}", self.compute_index(&key[key_start..]), current_index, self.memory.len());
-            match &self.memory[current_index] {
+            match &(*this)[current_index] {
                 Some(a) => {
                     match a.children_offset {
                         Some(b) => {
@@ -111,17 +116,18 @@ impl<T: TrieData> ContiguousTrie<T> {
 
     pub fn insert(&mut self, value: T, key: &[u8]) {
         let current_index = self.key2index(key);
+        let mut this = self.memory.lock().unwrap();
 //        println!("debug {} {}", current_index, self.memory.len());
-        if current_index >= self.memory.len() {
-            let push_amount = current_index - self.memory.len() + 1;
+        if current_index >= (*this).len() {
+            let push_amount = current_index - (*this).len() + 1;
             for _ in 0..push_amount {
-                self.memory.push(None);
+                (*this).push(None);
             }
         }
-        if self.memory[current_index].is_some() {
+        if (*this)[current_index].is_some() {
             assert!(false);
         }
-        self.memory[current_index] = Some(SubTrie {
+        (*this)[current_index] = Some(SubTrie {
             data: Some(value),
 //            depth: get_depth(self.key_length, current_index),
             depth: 0,
@@ -132,10 +138,11 @@ impl<T: TrieData> ContiguousTrie<T> {
     #[inline(always)]
     pub fn contain(&self, key: &[u8]) -> bool {
         let current_index = self.key2index(key);
-        if self.memory.len() <= current_index {
+        let mut this = self.memory.lock().unwrap();
+        if (*this).len() <= current_index {
             return false;
         }
-        match &self.memory[current_index] {
+        match &(*this)[current_index] {
             Some(_) => {
                 true
             }
@@ -146,10 +153,11 @@ impl<T: TrieData> ContiguousTrie<T> {
     #[inline(always)]
     pub fn get(&self, key: &[u8]) -> Option<T> {
         let current_index = self.key2index(key);
-        if self.memory.len() <= current_index {
+        let mut this = self.memory.lock().unwrap();
+        if (*this).len() <= current_index {
             return None;
         }
-        match &self.memory[current_index] {
+        match &(*this)[current_index] {
             Some(a) => {
                 a.data
             }
@@ -172,14 +180,23 @@ fn main() {
 
     for i in 0..100000 {
         let str = binary_format!(i);
-//        println!("{}", str);
         let arr = str.to_owned().into_bytes();
         trie.insert(i, &arr[2..]);
     }
 
-    for i in 0..100000 {
-        let str = binary_format!(i);
-        let arr = str.to_owned().into_bytes();
-        assert_eq!(trie.get(&arr[2..]).unwrap(), i);
+    let origin_trie = Arc::new(trie);
+
+    for t_id in 0..4 {
+        let thread_trie = origin_trie.clone();
+        let begin = t_id * 25000;
+        let end = (t_id + 1) * 25000;
+        thread::spawn(move || {
+            for i in begin..end {
+                let str = binary_format!(i);
+                let arr = str.to_owned().into_bytes();
+                assert_eq!(thread_trie.get(&arr[2..]).unwrap(), i);
+            }
+
+        });
     }
 }
