@@ -8,7 +8,7 @@ extern crate test;
 use test::Bencher;
 use std::usize;
 use std::collections::HashMap;
-use cchamt::ContiguousTrie;
+use cchamt::MutexContiguousTrie;
 
 // #[bench]
 // fn bench_10_get_trie(b: &mut Bencher) {
@@ -328,7 +328,7 @@ use cchamt::ContiguousTrie;
 
 #[bench]
 fn bench_rev_10_get_trie(b: &mut Bencher) {
-    let mut trie = ContiguousTrie::<usize>::new(32, 8);
+    let mut trie = MutexContiguousTrie::<usize>::new(32, 8);
     let mut v: Vec<Vec<u8>> = Vec::new();
     let range = 10;
 
@@ -364,7 +364,7 @@ fn bench_rev_10_get_hashmap(b: &mut Bencher) {
 
 #[bench]
 fn bench_rev_100_get_trie(b: &mut Bencher) {
-    let mut trie = ContiguousTrie::<usize>::new(32, 8);
+    let mut trie = MutexContiguousTrie::<usize>::new(32, 8);
     let mut v: Vec<Vec<u8>> = Vec::new();
     let range = 100;
 
@@ -400,7 +400,7 @@ fn bench_rev_100_get_hashmap(b: &mut Bencher) {
 
 #[bench]
 fn bench_rev_1000_get_trie(b: &mut Bencher) {
-    let mut trie = ContiguousTrie::<usize>::new(32, 8);
+    let mut trie = MutexContiguousTrie::<usize>::new(32, 8);
     let mut v: Vec<Vec<u8>> = Vec::new();
     let range = 1000;
 
@@ -436,7 +436,7 @@ fn bench_rev_1000_get_hashmap(b: &mut Bencher) {
 
 #[bench]
 fn bench_rev_10000_get_trie(b: &mut Bencher) {
-    let mut trie = ContiguousTrie::<usize>::new(32, 8);
+    let mut trie = MutexContiguousTrie::<usize>::new(32, 8);
     let mut v: Vec<Vec<u8>> = Vec::new();
     let range = 10000;
 
@@ -472,7 +472,7 @@ fn bench_rev_10000_get_hashmap(b: &mut Bencher) {
 
 #[bench]
 fn bench_rev_100000_get_trie(b: &mut Bencher) {
-    let mut trie = ContiguousTrie::<usize>::new(32, 8);
+    let mut trie = MutexContiguousTrie::<usize>::new(32, 8);
     let mut v: Vec<Vec<u8>> = Vec::new();
     let range = 100000;
 
@@ -508,7 +508,7 @@ fn bench_rev_100000_get_hashmap(b: &mut Bencher) {
 
 #[bench]
 fn bench_rev_1000000_get_trie(b: &mut Bencher) {
-    let mut trie = ContiguousTrie::<usize>::new(32, 8);
+    let mut trie = MutexContiguousTrie::<usize>::new(32, 8);
     let mut v: Vec<Vec<u8>> = Vec::new();
     let range = 1000000;
 
@@ -544,7 +544,7 @@ fn bench_rev_1000000_get_hashmap(b: &mut Bencher) {
 
 #[bench]
 fn bench_rev_10000000_get_trie(b: &mut Bencher) {
-    let mut trie = ContiguousTrie::<usize>::new(32, 8);
+    let mut trie = MutexContiguousTrie::<usize>::new(32, 8);
     let mut v: Vec<Vec<u8>> = Vec::new();
     let range = 10000000;
 

@@ -1,7 +1,5 @@
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::SystemTime;
-use std::collections::HashMap;
 
 pub trait TrieData: Clone + Copy + Eq + PartialEq {}
 
@@ -27,7 +25,7 @@ fn get_depth(key_group: usize, index: usize) -> usize {
 
 /// Core Data structure
 #[derive(Debug)]
-pub struct ContiguousTrie<T: TrieData> {
+pub struct MutexContiguousTrie<T: TrieData> {
     memory: Arc<Mutex<Vec<Option<SubTrie<T>>>>>,
     key_length: usize,
     key_segment_size: usize,
@@ -42,7 +40,7 @@ pub struct SubTrie<T: TrieData> {
 }
 
 // Contiguous store all the nodes contiguous with the sequential order of key
-impl<T: TrieData> ContiguousTrie<T> {
+impl<T: TrieData> MutexContiguousTrie<T> {
     pub fn new(key_length: usize, key_segment_size: usize) -> Self {
         assert_eq!(key_length % key_segment_size, 0);
 
@@ -72,7 +70,7 @@ impl<T: TrieData> ContiguousTrie<T> {
             }
         }
 
-        ContiguousTrie {
+        MutexContiguousTrie {
             memory,
             key_length,
             key_segment_size,
@@ -177,76 +175,31 @@ macro_rules! binary_format {
 }
 
 
-const NTHREAD: usize = 4;
 fn main() {
-//    let trie = Arc::new(ContiguousTrie::<usize>::new(32, 8));
-//
-//    let iter = 100000;
-//    for i in 0..iter {
-//        let str = binary_format!(i);
-//        let arr = str.to_owned().into_bytes();
-//        trie.insert(i, &arr[2..]);
-//    }
-//
-//    let mut thread_handle: Vec<thread::JoinHandle<_>> = vec![];
-//    let step: usize = iter / NTHREAD;
-//
-//    let start = SystemTime::now();
-//
-//    for tid in 0..NTHREAD {
-//        let thread_trie = trie.clone();
-//        let begin = tid * step;
-//        let end = (tid + 1) * step;
-//
-//        thread_handle.push(thread::spawn(move || {
-////            println!("{:?}", trie_arc.get(allocator_arc.clone().as_ref(), &"0000001111111111".to_owned().into_bytes()));
-//            for i in begin..end {
-//                let str = binary_format!(i);
-//                let arr = str.to_owned().into_bytes();
-//                assert_eq!(thread_trie.get(&arr[2..]).unwrap(), i);
-//            }
-//        }));
-//    }
-//
-//    for thread in thread_handle {
-//        thread.join();
-//    }
-//
-//    let end = SystemTime::now();
-//    let since = end.duration_since(start).expect("Time went backwards");
-//    println!("cccctrie_get{:?}", since);
-
-
-    let iter = 100000;
-    let mut base = HashMap::new();
-    for i in 0..iter {
-        base.insert(i, i);
-    }
-
-    let mut thread_handle: Vec<thread::JoinHandle<_>> = vec![];
-    let base_arc = Arc::new(base);
-    let step: usize = iter / NTHREAD;
-
-    let start = SystemTime::now();
-
-    for tid in 0..NTHREAD {
-        let base_arc = base_arc.clone();
-        let begin = tid * step;
-        let end = (tid + 1) * step;
-
-        thread_handle.push(thread::spawn(move || {
+    let trie = Arc::new(MutexContiguousTrie::<usize>::new(32, 8));
+    for t_id in 0..4 {
+		let trie = trie.clone();
+        let begin = t_id * 25000;
+        let end = (t_id + 1) * 25000;
+        thread::spawn(move || {
             for i in begin..end {
-                let res = base_arc.get(&i);
+                let str = binary_format!(i);
+                let arr = str.to_owned().into_bytes();
+				trie.insert(i, &arr[2..]);
             }
-        }));
+        });
     }
 
-    for thread in thread_handle {
-        thread.join();
+    for t_id in 0..4 {
+        let thread_trie = trie.clone();
+        let begin = t_id * 25000;
+        let end = (t_id + 1) * 25000;
+        thread::spawn(move || {
+            for i in begin..end {
+                let str = binary_format!(i);
+                let arr = str.to_owned().into_bytes();
+                assert_eq!(thread_trie.get(&arr[2..]).unwrap(), i);
+            }
+        });
     }
-
-    let end = SystemTime::now();
-    let since = end.duration_since(start).expect("Time went backwards");
-    println!("hashmap{:?}", since)
-
 }

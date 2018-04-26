@@ -1,6 +1,6 @@
 use rand::{Rng, thread_rng};
 use test::Bencher;
-use contiguous_cctrie::SubTrie;
+use contiguous_cctrie_one_mutex::SubTrie;
 use std::collections::HashMap;
 use chashmap::CHashMap;
 use std::thread;
@@ -25,173 +25,44 @@ fn gen_rand_str() -> String {
     return res;
 }
 
-//#[bench]
-//fn bench_rayon(b: &mut Bencher) {
-//    let iter = 1000;
-//    let mut base = CHashMap::new();
-//    let mut vector = Vec::new();
-//    let mut val: usize = 0;
-//    for _ in 0..iter {
-//
-//        let key = gen_rand_str().into_bytes();
-//        vector.push(key.clone());
-//        base.insert(key, val);
-//        val += 1;
-//    }
-//
-//    let start = SystemTime::now();
-//            for i in begin..end {
-//                let key = &vector_arc[i];
-//                let res = base_arc.get(&key.to_owned());
-//
-//            }
-//
-//
-//    let end = SystemTime::now();
-//    let since = end.duration_since(start).expect("Time went backwards");
-//    println!("hamt_chashmap{:?}", since);
-//    assert!(false);
-//
-//}
 
-//#[bench]
-//fn bench_chashmap(b: &mut Bencher) {
-//    let iter = 20000;
-//    let mut base = CHashMap::new();
-//    let mut vector = Vec::new();
-//    let mut val: usize = 0;
-//    for _ in 0..iter {
-//        let key = gen_rand_str().into_bytes();
-//        vector.push(key.clone());
-//        base.insert(key, val);
-//        val += 1;
-//    }
-//
-//    let mut thread_handle: Vec<thread::JoinHandle<_>> = vec![];
-//    let base_arc = Arc::new(base);
-//    let vector_arc = Arc::new(vector);
-//    let step: usize = iter / NTHREAD;
-//
-//    let start = SystemTime::now();
-//
-//    for tid in 0..NTHREAD {
-//        let base_arc = base_arc.clone();
-//        let vector_arc = vector_arc.clone();
-//        let begin = tid * step;
-//        let end = (tid + 1) * step;
-//
-//        thread_handle.push(thread::spawn(move || {
-//            for i in begin..end {
-//                let key = &vector_arc[i];
-//                let res = base_arc.get(&key.to_owned());
-//            }
-//        }));
-//    }
-//
-//    for thread in thread_handle {
-//        thread.join();
-//    }
-//
-//    let end = SystemTime::now();
-//    let since = end.duration_since(start).expect("Time went backwards");
-//    println!("hamt_chashmap{:?}", since);
-//    assert!(false);
-//}
-//
-//#[bench]
-//fn bench_hashmap(b: &mut Bencher) {
-//    let iter = 20000;
-//    let mut base = HashMap::new();
-//    let mut vector = Vec::new();
-//    let mut val: usize = 0;
-//    for _ in 0..iter {
-//        let key = gen_rand_str().into_bytes();
-//        vector.push(key.clone());
-//        base.insert(key, val);
-//        val += 1;
-//    }
-//
-//    let mut thread_handle: Vec<thread::JoinHandle<_>> = vec![];
-//    let base_arc = Arc::new(base);
-//    let vector_arc = Arc::new(vector);
-//    let step: usize = iter / NTHREAD;
-//
-//    let start = SystemTime::now();
-//
-//    for tid in 0..NTHREAD {
-//        let base_arc = base_arc.clone();
-//        let vector_arc = vector_arc.clone();
-//        let begin = tid * step;
-//        let end = (tid + 1) * step;
-//
-//        thread_handle.push(thread::spawn(move || {
-//            for i in begin..end {
-//                let key = &vector_arc[i];
-//                let res = base_arc.get(&key.to_owned());
-//            }
-//        }));
-//    }
-//
-//    for thread in thread_handle {
-//        thread.join();
-//    }
-//
-//    let end = SystemTime::now();
-//    let since = end.duration_since(start).expect("Time went backwards");
-//    println!("hamt_hashmap{:?}", since);
-//    assert!(false);
-//}
-//
-//#[bench]
-//fn bench_read(b: &mut Bencher) {
-//    let iter = 20000;
-//
-//    let capacity = 65536;
-//    let mut allocator: Vec<Option<Box<SubTrie<usize>>>> = Vec::with_capacity(capacity);
-//    for i in 0..capacity {
-//        allocator.push(None);
-//    }
-//    let mut trie = SubTrie::<usize>::new();
-//    let mut vector: Vec<String> = Vec::new();
-//    let mut val: usize = 0;
-//    for _ in 0..iter {
-//        let key = gen_rand_str();
-//        vector.push(key.clone());
-////        trie.insert(&mut allocator, val, &key.into_bytes());
-//        val += 1;
-//    }
-//
-//    let mut thread_handle: Vec<thread::JoinHandle<_>> = vec![];
-//    let allocator_arc = Arc::new(allocator);
-//    let trie_arc = Arc::new(trie);
-//    let vector_arc = Arc::new(vector);
-//    let step: usize = iter / NTHREAD;
-//
-//    let start = SystemTime::now();
-//
-//    for tid in 0..NTHREAD {
-//        let trie_arc = trie_arc.clone();
-//        let allocator_arc = allocator_arc.clone();
-//        let vector_arc = vector_arc.clone();
-//        let begin = tid * step;
-//        let end = (tid + 1) * step;
-//
-//        thread_handle.push(thread::spawn(move || {
-////            println!("{:?}", trie_arc.get(allocator_arc.clone().as_ref(), &"0000001111111111".to_owned().into_bytes()));
-//            for i in begin..end {
-//                let key = &vector_arc[i];
-//                trie_arc.get(allocator_arc.clone().as_ref(), &key.as_bytes().to_owned());
-//            }
-//        }));
-//    }
-//
-//    for thread in thread_handle {
-//        thread.join();
-//    }
-//
-//    let end = SystemTime::now();
-//    let since = end.duration_since(start).expect("Time went backwards");
-//    println!("hamt_get{:?}", since);
-//    assert!(false);
-//}
-//
+#[bench]
+fn bench_read(b: &mut Bencher) {
+    let iter = 100000;
+    for i in 0..iter {
+        let str = binary_format!(i);
+        let arr = str.to_owned().into_bytes();
+        trie.insert(i, &arr[2..]);
+    }
+
+    let trie = Arc::new(RwContiguousTrie::<usize>::new(32, 8));
+    let mut thread_handle: Vec<thread::JoinHandle<_>> = vec![];
+    let step: usize = iter / NTHREAD;
+
+    let start = SystemTime::now();
+
+    for tid in 0..NTHREAD {
+        let thread_trie = trie.clone();
+        let begin = tid * step;
+        let end = (tid + 1) * step;
+
+        thread_handle.push(thread::spawn(move || {
+//            println!("{:?}", trie_arc.get(allocator_arc.clone().as_ref(), &"0000001111111111".to_owned().into_bytes()));
+            for i in begin..end {
+                let str = binary_format!(i);
+                let arr = str.to_owned().into_bytes();
+                assert_eq!(thread_trie.get(&arr[2..]).unwrap(), i);
+            }
+        }));
+    }
+
+    for thread in thread_handle {
+        thread.join();
+    }
+
+    let end = SystemTime::now();
+    let since = end.duration_since(start).expect("Time went backwards");
+    println!("cccctrie_get{:?}", since);
+    assert!(false);
+}
+
