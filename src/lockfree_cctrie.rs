@@ -2,6 +2,7 @@ use std::hash::{Hash,Hasher};
 use std::collections::hash_map::DefaultHasher;
 use std::sync::atomic::{AtomicPtr,Ordering};
 use std::option::Option;
+use std::ptr::null_mut;
 
 pub trait TrieData: Clone + Copy + Eq + PartialEq {}
 
@@ -49,6 +50,13 @@ pub struct LockfreeTrie<K: TrieKey, V: TrieData> {
     root: AtomicPtr<Node<K,V>>
 }
 
+fn makeanode<K,V>(len: usize) -> ANode<K,V> {
+    let mut a: ANode<K,V> = Vec::with_capacity(len);
+
+    for i in 0..len { a.push(AtomicPtr::new(null_mut())); }
+    return a;
+}
+
 /**
  * TODO: fix memory leaks and use atomic_ref or crossbeam crates
  */
@@ -57,7 +65,7 @@ fn alloc<T>(thing: T) -> *mut T { Box::into_raw(box thing) }
 impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
     pub fn new() -> Self {
         LockfreeTrie {
-            root: AtomicPtr::new(alloc(Node::ANode(Vec::with_capacity(4))))
+            root: AtomicPtr::new(alloc(Node::ANode(makeanode(4))))
         }
     }
 
@@ -106,7 +114,7 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
             let mut _wideptr = _wide.load(Ordering::Relaxed);
             let narrowptr = narrow.load(Ordering::Relaxed);
             LockfreeTrie::_freeze(unsafe {&mut *narrowptr} );
-            let mut wide: ANode<K,V> = Vec::with_capacity(16);
+            let mut wide = makeanode(16);
             if let Node::ANode(ref an) = unsafe {&*narrowptr} {
                 // copy
                 for node in an {
@@ -133,7 +141,7 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
     }
 
     fn _create_anode(old: &mut Node<K,V>, sn: Node<K,V>, lev: u8) -> ANode<K,V> {
-        let mut v: ANode<K,V> = Vec::with_capacity(4);
+        let mut v = makeanode(4);
 
         if let Node::SNode { hash: h_old, .. } = old {
             let old_pos = (*h_old >> lev) as usize & (v.capacity() - 1);
