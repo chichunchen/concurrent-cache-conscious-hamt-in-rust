@@ -165,7 +165,7 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
             let oldptr = cur2[pos].load(Ordering::Relaxed);
             let oldref = unsafe {&mut *oldptr};
 
-            if (oldptr.is_null()) {
+            if oldptr.is_null() {
                 let sn = alloc(Node::SNode {
                     hash: h,
                     key: key,
@@ -199,7 +199,6 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
                         }
                     } else if cur2.capacity() == 4 {
                         let prevptr = prev.load(Ordering::Relaxed);
-                        assert!(!prevptr.is_null(), "prevptr should not be null!");
                         let prevref = unsafe {&mut *prevptr};
                         if let Node::ANode(ref mut prev2) = prevref {
                             let ppos = (h >> (lev - 4)) as usize & (prev2.capacity() - 1);
