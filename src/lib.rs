@@ -1,5 +1,10 @@
 #![feature(test)]
 #![allow(warnings)]
+#![feature(ptr_internals)]
+#![feature(allocator_api)]
+#![feature(unique)]
+#![feature(slice_get_slice)]
+#![feature(box_syntax)]
 
 extern crate core;
 extern crate rand;
@@ -10,6 +15,8 @@ extern crate rayon;
 mod cctrie;
 mod contiguous_cctrie;
 mod bench;
+mod lockfree_cctrie;
 
 pub use cctrie::{Trie, TrieData, IndexStatus};
-pub use contiguous_cctrie::{ContiguousTrie};
+pub use contiguous_cctrie::ContiguousTrie;
+pub use lockfree_cctrie::LockfreeTrie;
