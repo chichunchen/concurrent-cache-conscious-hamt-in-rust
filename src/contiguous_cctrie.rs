@@ -96,7 +96,7 @@ impl<T: TrieData> ContiguousTrie<T> {
         let mut current_index = self.compute_index(key);
         let mut key_start = 0;
         let mut this = self.memory.lock().unwrap();
-        while (*this).len() > current_index && (*this)[current_index].is_some() {
+        while key_start <= self.key_length && (*this).len() + self.key_segment_size > current_index && (*this)[current_index].is_some() {
 //            println!("comp_index {} ci {} {}", self.compute_index(&key[key_start..]), current_index, self.memory.len());
             match &(*this)[current_index] {
                 Some(a) => {
