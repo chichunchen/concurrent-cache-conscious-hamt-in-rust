@@ -15,12 +15,12 @@ use cchamt::ContiguousTrie;
 
 #[test]
 fn test_new_contiguous_trie() {
-    let trie = ContiguousTrie::<usize>::new();
+    let trie = ContiguousTrie::<usize>::new(28, 4);
 }
 
 #[test]
 fn test_2_power_16_insert() {
-    let mut trie = ContiguousTrie::<usize>::new();
+    let mut trie = ContiguousTrie::<usize>::new(28, 4);
 
     for i in 0..65536 {
         let str = binary_format!(i);
@@ -37,7 +37,7 @@ fn test_2_power_16_insert() {
 
 #[test]
 fn test_million_consecutive_insert() {
-    let mut trie = ContiguousTrie::<usize>::new();
+    let mut trie = ContiguousTrie::<usize>::new(28, 4);
 
     for i in 0..1000000 {
         let str = binary_format!(i);
