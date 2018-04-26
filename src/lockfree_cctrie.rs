@@ -122,7 +122,7 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
                 }
             }
             let mut widenode = &mut Node::ANode(wide);
-            if _wide.compare_and_swap(0 as *mut Node<K,V>, widenode, Ordering::Relaxed) != 0 as *mut Node<K,V> {
+            if _wide.compare_and_swap(null_mut(), widenode, Ordering::Relaxed) != null_mut() {
                 _wideptr = _wide.load(Ordering::Relaxed);
                 if let Node::ANode(ref an) = unsafe {&mut *_wideptr} {
                     widenode = unsafe {&mut *_wideptr};
@@ -199,6 +199,7 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
                         }
                     } else if cur2.capacity() == 4 {
                         let prevptr = prev.load(Ordering::Relaxed);
+                        assert!(!prevptr.is_null(), "prevptr should not be null!");
                         let prevref = unsafe {&mut *prevptr};
                         if let Node::ANode(ref mut prev2) = prevref {
                             let ppos = (h >> (lev - 4)) as usize & (prev2.capacity() - 1);
@@ -208,7 +209,7 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
                                 narrow: AtomicPtr::new(curref),
                                 hash: h,
                                 level: lev,
-                                wide: AtomicPtr::new(0 as *mut Node<K,V>)
+                                wide: AtomicPtr::new(null_mut())
                             };
                             if prev2[ppos].compare_and_swap(curref, en, Ordering::Relaxed) == curref {
                                 LockfreeTrie::_complete_expansion(en);
@@ -259,7 +260,7 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
     }
 
     pub fn insert(&mut self, key: K, val: V) -> bool {
-        LockfreeTrie::_insert(key, val, hash(key), 0, &mut self.root, &mut AtomicPtr::new(0 as *mut Node<K,V>))
+        LockfreeTrie::_insert(key, val, hash(key), 0, &mut self.root, &mut AtomicPtr::new(null_mut()))
             || self.insert(key, val)
     }
 
