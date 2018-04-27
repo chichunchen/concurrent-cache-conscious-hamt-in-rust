@@ -65,7 +65,7 @@ fn alloc<T>(thing: T) -> *mut T { Box::into_raw(box thing) }
 impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
     pub fn new() -> Self {
         LockfreeTrie {
-            root: AtomicPtr::new(alloc(Node::ANode(makeanode(4))))
+            root: AtomicPtr::new(alloc(Node::ANode(makeanode(16))))
         }
     }
 
