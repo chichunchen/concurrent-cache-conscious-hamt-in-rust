@@ -30,7 +30,7 @@ fn test_lockfree_2_power_16_insert() {
         if let Some(j) = trie.lookup(&i) {
             assert_eq!(*j, (i+1) as u64);
         } else {
-            assert!(false, "not found");
+            assert!(false, "<{}> not found", i);
         }
     }
 }
@@ -47,7 +47,7 @@ fn test_lockfree_million_consecutive_insert() {
         if let Some(j) = trie.lookup(&i) {
             assert_eq!(*j, (i+1) as u64);
         } else {
-            assert!(false, "not found");
+            assert!(false, "<{}> not found", i);
         }
     }
 }
