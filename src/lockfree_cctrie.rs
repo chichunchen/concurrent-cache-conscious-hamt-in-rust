@@ -144,9 +144,9 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
         let mut v = makeanode(4);
 
         if let Node::SNode { hash: h_old, .. } = old {
-            let old_pos = (*h_old >> lev) as usize & (v.capacity() - 1);
+            let old_pos = (*h_old >> lev) as usize & (v.len() - 1);
             if let Node::SNode { hash: h_sn, .. } = sn {
-                let sn_pos = (h_sn >> lev) as usize & (v.capacity() - 1);
+                let sn_pos = (h_sn >> lev) as usize & (v.len() - 1);
                 v[old_pos] = AtomicPtr::new(old);
                 v[sn_pos] = AtomicPtr::new(alloc(sn));
             }
@@ -161,7 +161,7 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
         let curref = unsafe {&mut *curptr};
 
         if let Node::ANode(ref mut cur2) = curref {
-            let pos = (h >> lev) as usize & (cur2.capacity() - 1);
+            let pos = (h >> lev) as usize & (cur2.len() - 1);
             let oldptr = cur2[pos].load(Ordering::Relaxed);
             let oldref = unsafe {&mut *oldptr};
 
@@ -197,11 +197,11 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
                         } else {
                             LockfreeTrie::_insert(key, val, h, lev, cur, prev)
                         }
-                    } else if cur2.capacity() == 4 {
+                    } else if cur2.len() == 4 {
                         let prevptr = prev.load(Ordering::Relaxed);
                         let prevref = unsafe {&mut *prevptr};
                         if let Node::ANode(ref mut prev2) = prevref {
-                            let ppos = (h >> (lev - 4)) as usize & (prev2.capacity() - 1);
+                            let ppos = (h >> (lev - 4)) as usize & (prev2.len() - 1);
                             let en = &mut Node::ENode {
                                 parent: AtomicPtr::new(prevref),
                                 parentpos: ppos as u8,
@@ -267,7 +267,7 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
         let curptr = cur.load(Ordering::Relaxed);
         let curref = unsafe {&mut *curptr};
         if let Node::ANode(ref mut cur2) = curref {
-            let pos = (h >> lev) as usize & (cur2.capacity() - 1);
+            let pos = (h >> lev) as usize & (cur2.len() - 1);
             let oldptr = cur2[pos].load(Ordering::Relaxed);
             let oldref = unsafe {&*oldptr};
 
