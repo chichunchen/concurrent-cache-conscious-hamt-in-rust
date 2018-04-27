@@ -93,7 +93,7 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
                         i -= 1;
                     }
                 } else if let Node::ANode(ref an) = noderef {
-                    let fnode = &mut Node::FNode { frozen: AtomicPtr::new(noderef) };
+                    let fnode = alloc(Node::FNode { frozen: AtomicPtr::new(noderef) });
                     node.compare_and_swap(nodeptr, fnode, Ordering::Relaxed);
                     i -= 1;
                 } else if let Node::FNode { ref frozen } = noderef {
@@ -121,7 +121,7 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
                     wide.push(AtomicPtr::new(node.load(Ordering::Relaxed)));
                 }
             }
-            let mut widenode = &mut Node::ANode(wide);
+            let mut widenode = alloc(Node::ANode(wide));
             if _wide.compare_and_swap(null_mut(), widenode, Ordering::Relaxed) != null_mut() {
                 _wideptr = _wide.load(Ordering::Relaxed);
                 if let Node::ANode(ref an) = unsafe {&mut *_wideptr} {
@@ -178,10 +178,10 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
                     LockfreeTrie::_insert(key, val, h, lev, cur, prev)
                 }
             } else if let Node::ANode(ref mut an) = oldref {
-                LockfreeTrie::_insert(key, val, h, lev + 4, &cur2[pos], cur)
+                LockfreeTrie::_insert(key, val, h, lev + 4, &AtomicPtr::new(oldref), cur)
             } else if let Node::SNode { hash: _hash, key: _key, val: _val, ref txn } = oldref {
                 let txnptr = txn.load(Ordering::Relaxed);
-                let txnref = unsafe{&*txnptr};
+                let txnref = unsafe {&*txnptr};
 
                 if let Node::NoTxn = txnref {
                     if *_key == key {
@@ -202,17 +202,17 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
                         let prevref = unsafe {&mut *prevptr};
                         if let Node::ANode(ref mut prev2) = prevref {
                             let ppos = (h >> (lev - 4)) as usize & (prev2.len() - 1);
-                            let en = &mut Node::ENode {
+                            let en = alloc(Node::ENode {
                                 parent: AtomicPtr::new(prevref),
                                 parentpos: ppos as u8,
                                 narrow: AtomicPtr::new(curref),
                                 hash: h,
                                 level: lev,
                                 wide: AtomicPtr::new(null_mut())
-                            };
+                            });
                             if prev2[ppos].compare_and_swap(curref, en, Ordering::Relaxed) == curref {
-                                LockfreeTrie::_complete_expansion(en);
-                                if let Node::ENode { ref wide, .. } = en {
+                                LockfreeTrie::_complete_expansion(unsafe{&mut *en});
+                                if let Node::ENode { ref wide, .. } = unsafe{&mut *en} {
                                     LockfreeTrie::_insert(key, val, h, lev, wide, prev)
                                 } else {
                                     // should not be reached
