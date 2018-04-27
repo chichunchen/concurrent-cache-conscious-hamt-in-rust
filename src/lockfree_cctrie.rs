@@ -108,7 +108,7 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
         }
     }
 
-    fn _copy(an: &ANode<K,V>, wide: &mut Node<K,V>, lev: u64) -> () {
+    fn _copy(an: &ANode<K,V>, wide: &AtomicPtr<Node<K,V>>, lev: u64) -> () {
         for node in an {
             match unsafe {&*node.load(Ordering::Relaxed)} {
                 Node::FNode { ref frozen } => {
@@ -120,8 +120,7 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
                     }
                 },
                 Node::SNode { hash, key, val, txn } => {
-                    let wideaptr = AtomicPtr::new(wide);
-                    LockfreeTrie::_insert(*key, *val, *hash, lev as u8, &wideaptr, &AtomicPtr::new(null_mut()));
+                    LockfreeTrie::_insert(*key, *val, *hash, lev as u8, wide, &AtomicPtr::new(null_mut()));
                 },
                 _ => { /* ignore */ }
             }
@@ -133,17 +132,10 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
             let mut _wideptr = _wide.load(Ordering::Relaxed);
             let narrowptr = narrow.load(Ordering::Relaxed);
             LockfreeTrie::_freeze(unsafe {&mut *narrowptr} );
-            let mut wide = makeanode(16);
+            let mut widenode = alloc(Node::ANode(makeanode(16)));
             if let Node::ANode(ref an) = unsafe {&*narrowptr} {
-                let temp = &mut Node::ANode(makeanode(16));
-                LockfreeTrie::_copy(an, temp, *level as u64);
-                if let Node::ANode(a2) = temp {
-                    for a in a2 {
-                        wide.push(AtomicPtr::new(a.load(Ordering::Relaxed)));
-                    }
-                }
+                LockfreeTrie::_copy(an, &AtomicPtr::new(widenode), *level as u64);
             }
-            let mut widenode = alloc(Node::ANode(wide));
             if _wide.compare_and_swap(null_mut(), widenode, Ordering::Relaxed) != null_mut() {
                 _wideptr = _wide.load(Ordering::Relaxed);
                 if let Node::ANode(ref an) = unsafe {&mut *_wideptr} {
