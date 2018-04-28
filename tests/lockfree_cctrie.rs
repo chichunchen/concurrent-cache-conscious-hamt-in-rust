@@ -10,8 +10,7 @@ use test::Bencher;
 use std::usize;
 use std::collections::HashMap;
 use rand::{Rng, thread_rng};
-use cchamt::LockfreeTrie;
-
+use cchamt::LockfreeTrie; 
 
 #[test]
 fn test_lockfree_new_lockfree_trie() {

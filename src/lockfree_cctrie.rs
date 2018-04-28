@@ -75,6 +75,10 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
                 let node = &cur[i];
                 let nodeptr = node.load(Ordering::Relaxed);
                 let noderef = unsafe {&mut *nodeptr};
+
+                assert_ne!(nodeptr, nnode as *mut Node<K,V>, "i == {}", i);
+
+                i += 1;
                 if nodeptr.is_null() {
                     if node.compare_and_swap(nodeptr, alloc(Node::FVNode), Ordering::Relaxed) != nodeptr {
                         i -= 1;
@@ -101,7 +105,6 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
                     LockfreeTrie::_complete_expansion(noderef);
                     i -= 1;
                 }
-                i += 1;
             }
         } else {
             panic!("CORRUPTION: nnode is not an ANode")
@@ -187,7 +190,7 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
                     val: val,
                     txn: AtomicPtr::new(alloc(Node::NoTxn))
                 });
-                if cur2[pos].compare_and_swap(oldptr, sn, Ordering::Relaxed) == oldptr {
+                if old.compare_and_swap(oldptr, sn, Ordering::Relaxed) == oldptr {
                     true
                 } else {
                     LockfreeTrie::_insert(key, val, h, lev, cur, prev)
@@ -207,7 +210,7 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
                             txn: AtomicPtr::new(alloc(Node::NoTxn))
                         });
                         if txn.compare_and_swap(txnptr, alloc(Node::NoTxn), Ordering::Relaxed) == txnptr {
-                            cur2[pos].compare_and_swap(oldptr, sn, Ordering::Relaxed);
+                            old.compare_and_swap(oldptr, sn, Ordering::Relaxed);
                             true
                         } else {
                             LockfreeTrie::_insert(key, val, h, lev, cur, prev)
@@ -217,6 +220,7 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
                         let prevref = unsafe {&mut *prevptr};
                         if let Node::ANode(ref mut prev2) = prevref {
                             let ppos = (h >> (lev - 4)) as usize & (prev2.len() - 1);
+                            let prev2aptr = &prev2[ppos];
                             let en = alloc(Node::ENode {
                                 parent: AtomicPtr::new(prevref),
                                 parentpos: ppos as u8,
@@ -225,7 +229,7 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
                                 level: lev,
                                 wide: AtomicPtr::new(null_mut())
                             });
-                            if prev2[ppos].compare_and_swap(curref, en, Ordering::Relaxed) == curref {
+                            if prev2aptr.compare_and_swap(curref, en, Ordering::Relaxed) == curref {
                                 LockfreeTrie::_complete_expansion(unsafe{&mut *en});
                                 if let Node::ENode { ref wide, .. } = unsafe{&mut *en} {
                                     LockfreeTrie::_insert(key, val, h, lev, wide, prev)
@@ -248,9 +252,8 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
                                 val: val,
                                 txn: AtomicPtr::new(alloc(Node::NoTxn))
                             }, lev + 4)));
-                        let notxnptr = alloc(Node::NoTxn);
-                        if txn.compare_and_swap(txnptr, notxnptr, Ordering::Relaxed) == txnptr {
-                            cur2[pos].compare_and_swap(oldptr, an, Ordering::Relaxed);
+                        if txn.compare_and_swap(txnptr, an, Ordering::Relaxed) == txnptr {
+                            old.compare_and_swap(oldptr, an, Ordering::Relaxed);
                             true
                         } else {
                             LockfreeTrie::_insert(key, val, h, lev, cur, prev)
@@ -259,7 +262,7 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
                 } else if let Node::FSNode = txnref {
                     false
                 } else {
-                    cur2[pos].compare_and_swap(oldptr, txnptr, Ordering::Relaxed);
+                    old.compare_and_swap(oldptr, txnptr, Ordering::Relaxed);
                     LockfreeTrie::_insert(key, val, h, lev, cur, prev)
                 }
             } else {
