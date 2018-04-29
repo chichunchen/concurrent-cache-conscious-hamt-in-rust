@@ -108,6 +108,7 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
                 }
             }
         } else {
+            // this has never happened once, but just to be sure...
             panic!("CORRUPTION: nnode is not an ANode")
         }
     }
@@ -120,6 +121,7 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
                     if let Node::ANode(ref an2) = frzref {
                         LockfreeTrie::_copy(mem, an2, wide, lev);
                     } else {
+                        // this has never happened once, but just to be sure...
                         panic!("CORRUPTION: FNode contains non-ANode")
                     }
                 },
@@ -139,6 +141,7 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
             if let Node::ANode(ref an) = unsafe {&*narrowptr} {
                 LockfreeTrie::_copy(mem, an, unsafe {&mut *widenode}, *level as u64);
             } else {
+                // this has never happened once, but just to be sure...
                 panic!("CORRUPTION: narrow is not an ANode")
             }
             if _wide.compare_and_swap(null_mut(), widenode, Ordering::Relaxed) != null_mut() {
@@ -146,7 +149,8 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
                 if let Node::ANode(ref an) = unsafe {&mut *_wideptr} {
                     widenode = unsafe {&mut *_wideptr};
                 } else {
-                    panic!("_wide is not an ANode")
+                    // this has never happened once, but just to be sure...
+                    panic!("CORRUPTION: _wide is not an ANode")
                 }
             }
             let parentref = unsafe {&*parent.load(Ordering::Relaxed)};
@@ -154,10 +158,11 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
                 let anptr = &an[*parentpos as usize];
                 anptr.compare_and_swap(enode, widenode, Ordering::Relaxed);
             } else {
+                // this has never happened once, but just to be sure...
                 panic!("CORRUPTION: parent is not an ANode")
             }
         } else {
-            // this should never be reached
+            // this has never happened once, but just to be sure...
             panic!("CORRUPTION: enode is not an ENode")
         }
     }
@@ -176,9 +181,11 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
                     v[sn_pos] = AtomicPtr::new(mem.alloc(sn));
                 }
             } else {
+                // this has never happened once, but just to be sure...
                 panic!("CORRUPTION: expected SNode");
             }
         } else {
+            // this has never happened once, but just to be sure...
             panic!("CORRUPTION: expected SNode");
         }
         return v;
@@ -246,17 +253,18 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
                                         let wideref = unsafe {&mut *wide.load(Ordering::Relaxed)};
                                         LockfreeTrie::_insert(mem, key, val, h, lev, wideref, Some(prevref))
                                     } else {
-                                        // should not be reached
+                                        // this has never happened once, but just to be sure...
                                         panic!("CORRUPTION: en is not an ENode")
                                     }
                                 } else {
                                     LockfreeTrie::_insert(mem, key, val, h, lev, cur, Some(prevref))
                                 }
                             } else {
-                                // should not be reached
+                                // this has never happened once, but just to be sure...
                                 panic!("CORRUPTION: prevref is not an ANode")
                             }
                         } else {
+                            // this has never happened once, but just to be sure...
                             panic!("ERROR: prev is None")
                         }
                     } else {
@@ -293,7 +301,7 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
                 false
             }
         } else {
-            // should not be reached
+            // this has never happened once, but just to be sure...
             panic!("CORRUPTION: curref is not an ANode")
         }
     }
@@ -326,9 +334,11 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
             } else if let Node::FNode { frozen } = oldref {
                 LockfreeTrie::_lookup(key, h, lev + 4, unsafe {&*frozen.load(Ordering::Relaxed)})
             } else {
+                // this has never happened once, but just to be sure...
                 panic!("CORRUPTION: oldref is not a valid node")
             }
         } else {
+            // this has never happened once, but just to be sure...
             panic!("CORRUPTION: cur is not a pointer to ANode")
         }
     }
