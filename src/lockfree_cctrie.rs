@@ -3,7 +3,6 @@ use std::collections::hash_map::DefaultHasher;
 use std::sync::atomic::{AtomicPtr,Ordering};
 use std::option::Option;
 use std::ptr::null_mut;
-use std::intrinsics::type_name;
 
 pub trait TrieData: Clone + Copy + Eq + PartialEq {}
 
@@ -302,12 +301,10 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
             || self.insert(key, val)
     }
 
-    fn _lookup<'a>(key: &K, h: u64, lev: u8, cur: &'a AtomicPtr<Node<K,V>>) -> Option<&'a V> {
-        let curptr = cur.load(Ordering::Relaxed);
-        let curref = unsafe {&mut *curptr};
-        if let Node::ANode(ref mut cur2) = curref {
+    fn _lookup<'a>(key: &K, h: u64, lev: u8, cur: &'a Node<K,V>) -> Option<&'a V> {
+        if let Node::ANode(ref cur2) = cur {
             let pos = (h >> lev) as usize & (cur2.len() - 1);
-            let oldptr = cur2[pos].load(Ordering::Relaxed);
+            let oldptr = (&cur2[pos]).load(Ordering::Relaxed);
             let oldref = unsafe {&*oldptr};
 
             if oldptr.is_null() {
@@ -315,7 +312,7 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
             } else if let Node::FVNode = oldref {
                 None
             } else if let Node::ANode(ref an) = oldref {
-                LockfreeTrie::_lookup(key, h, lev + 4, &cur2[pos])
+                LockfreeTrie::_lookup(key, h, lev + 4, oldref)
             } else if let Node::SNode { key: _key, val, .. } = oldref {
                 if *_key == *key {
                     Some(val)
@@ -323,9 +320,9 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
                     None
                 }
             } else if let Node::ENode { narrow, .. } = oldref {
-                LockfreeTrie::_lookup(key, h, lev + 4, narrow)
+                LockfreeTrie::_lookup(key, h, lev + 4, unsafe{&*narrow.load(Ordering::Relaxed)})
             } else if let Node::FNode { frozen } = oldref {
-                LockfreeTrie::_lookup(key, h, lev + 4, frozen)
+                LockfreeTrie::_lookup(key, h, lev + 4, unsafe {&*frozen.load(Ordering::Relaxed)})
             } else {
                 panic!("CORRUPTION: oldref is not a valid node")
             }
@@ -335,6 +332,6 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
     }
 
     pub fn lookup(&self, key: &K) -> Option<&V> {
-        LockfreeTrie::_lookup(key, hash(key), 0, &self.root)
+        LockfreeTrie::_lookup(key, hash(key), 0, unsafe{&*self.root.load(Ordering::Relaxed)})
     }
 }
