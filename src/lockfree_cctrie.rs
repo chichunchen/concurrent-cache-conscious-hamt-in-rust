@@ -3,6 +3,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::sync::atomic::{AtomicPtr,Ordering};
 use std::option::Option;
 use std::ptr::null_mut;
+use std::intrinsics::type_name;
 
 pub trait TrieData: Clone + Copy + Eq + PartialEq {}
 
@@ -53,13 +54,18 @@ fn makeanode<K,V>(len: usize) -> ANode<K,V> {
     let mut a: ANode<K,V> = Vec::with_capacity(len);
 
     for i in 0..len { a.push(AtomicPtr::new(null_mut())); }
+    println!("created new vec: {:p}", a.as_mut_ptr());
     return a;
 }
 
 /**
  * TODO: fix memory leaks and use atomic_ref or crossbeam crates
  */
-fn alloc<T>(thing: T) -> *mut T { Box::into_raw(box thing) }
+fn alloc<T>(thing: T) -> *mut T {
+    let p = Box::into_raw(box thing);
+    println!("created new {:p} ({})", p, unsafe {type_name::<T>()});
+    return p;
+}
 
 impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
     pub fn new() -> Self {
@@ -71,6 +77,7 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
     fn _freeze(nnode: &mut Node<K,V>) -> () {
         if let Node::ANode(ref cur) = nnode {
             let mut i = 0;
+            println!("_freeze({:p} in {:p})", cur.as_ptr(), nnode);
             while i < cur.len() {
                 let node = &cur[i];
                 let nodeptr = node.load(Ordering::Relaxed);
@@ -168,14 +175,22 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
             let old_pos = (*h_old >> lev) as usize & (v.len() - 1);
             if let Node::SNode { hash: h_sn, .. } = sn {
                 let sn_pos = (h_sn >> lev) as usize & (v.len() - 1);
+                // assert_ne!(old_pos, sn_pos);
+                if old_pos == sn_pos {
+                    println!("create_anode({:p}): conflict", v.as_ptr());
+                }
                 v[old_pos] = AtomicPtr::new(old);
-                v[sn_pos] = AtomicPtr::new(alloc(sn));
+                println!("{:p}[{}] = {:p}", v.as_ptr(), old_pos, old as *mut Node<K,V>);
+                let p = alloc(sn);
+                v[sn_pos] = AtomicPtr::new(p);
+                println!("{:p}[{}] = {:p}", v.as_ptr(), sn_pos, p);
             } else {
                 panic!("CORRUPTION: expected SNode");
             }
         } else {
             panic!("CORRUPTION: expected SNode");
         }
+        println!("_create_anode() = {:p}", v.as_ptr());
         return v;
     }
 
@@ -267,6 +282,13 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
                             }, lev + 4)));
                         if txn.compare_and_swap(txnptr, an, Ordering::Relaxed) == txnptr {
                             old.compare_and_swap(oldptr, an, Ordering::Relaxed);
+                            if let Node::ANode(ref an2) = unsafe {&*an} {
+                                let an2ptr = an2.as_ptr();
+                                for n in an2 {
+                                    let p = n.load(Ordering::Relaxed);
+                                    println!("{:p} in {:p} contains {:p}", an2ptr, an, p);
+                                }
+                            }
                             println!("created new ANode (4) at pos {}, level {}", pos, lev);
                             true
                         } else {

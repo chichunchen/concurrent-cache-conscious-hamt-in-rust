@@ -5,6 +5,7 @@
 #![feature(unique)]
 #![feature(slice_get_slice)]
 #![feature(box_syntax)]
+#![feature(core_intrinsics)]
 
 extern crate core;
 extern crate rand;
