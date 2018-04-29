@@ -117,7 +117,7 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
                 Node::FNode { ref frozen } => {
                     let frzref = unsafe {&*frozen.load(Ordering::Relaxed)};
                     if let Node::ANode(ref an2) = frzref {
-                        LockfreeTrie::_copy(an2, wide, lev + 4);
+                        LockfreeTrie::_copy(an2, wide, lev);
                     } else {
                         panic!("CORRUPTION: FNode contains non-ANode")
                     }
