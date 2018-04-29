@@ -23,7 +23,6 @@ fn test_lockfree_2_power_16_insert() {
 
     for i in 0..65536 {
         trie.insert(i, i+1);
-        println!("insert {}", i);
     }
 
     for i in 0..65536 {

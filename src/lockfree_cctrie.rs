@@ -54,17 +54,14 @@ fn makeanode<K,V>(len: usize) -> ANode<K,V> {
     let mut a: ANode<K,V> = Vec::with_capacity(len);
 
     for i in 0..len { a.push(AtomicPtr::new(null_mut())); }
-    println!("created new vec: {:p}", a.as_mut_ptr());
-    return a;
+    a
 }
 
 /**
  * TODO: fix memory leaks and use atomic_ref or crossbeam crates
  */
 fn alloc<T>(thing: T) -> *mut T {
-    let p = Box::into_raw(box thing);
-    println!("created new {:p} ({})", p, unsafe {type_name::<T>()});
-    return p;
+    Box::into_raw(box thing)
 }
 
 impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
@@ -77,13 +74,10 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
     fn _freeze(nnode: &mut Node<K,V>) -> () {
         if let Node::ANode(ref cur) = nnode {
             let mut i = 0;
-            println!("_freeze({:p} in {:p})", cur.as_ptr(), nnode);
             while i < cur.len() {
                 let node = &cur[i];
                 let nodeptr = node.load(Ordering::Relaxed);
                 let noderef = unsafe {&mut *nodeptr};
-
-                assert_ne!(nodeptr, nnode as *mut Node<K,V>, "i == {}", i);
 
                 i += 1;
                 if nodeptr.is_null() {
@@ -187,7 +181,6 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
         } else {
             panic!("CORRUPTION: expected SNode");
         }
-        println!("_create_anode() = {:p}", v.as_ptr());
         return v;
     }
 
@@ -209,7 +202,6 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
                     txn: AtomicPtr::new(alloc(Node::NoTxn))
                 });
                 if old.compare_and_swap(oldptr, sn, Ordering::Relaxed) == oldptr {
-                    println!("inserted new SNode at pos {}, level {}", pos, lev);
                     true
                 } else {
                     LockfreeTrie::_insert(key, val, h, lev, cur, prev)
@@ -230,7 +222,6 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
                         });
                         if txn.compare_and_swap(txnptr, sn, Ordering::Relaxed) == txnptr {
                             old.compare_and_swap(oldptr, sn, Ordering::Relaxed);
-                            println!("replacing old value at pos {}, level {}", pos, lev);
                             true
                         } else {
                             LockfreeTrie::_insert(key, val, h, lev, cur, prev)
@@ -249,9 +240,7 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
                                     wide: AtomicPtr::new(null_mut())
                                 });
                                 if prev2aptr.compare_and_swap(cur, en, Ordering::Relaxed) == cur {
-                                    println!("expanding short ANode at pos {}, lev {}", ppos, lev - 4);
                                     LockfreeTrie::_complete_expansion(unsafe{&mut *en});
-                                    println!("completed expansion");
                                     if let Node::ENode { ref wide, .. } = unsafe{&mut *en} {
                                         let wideref = unsafe {&mut *wide.load(Ordering::Relaxed)};
                                         LockfreeTrie::_insert(key, val, h, lev, wideref, Some(prevref))
@@ -285,14 +274,6 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
                             }, lev + 4)));
                         if txn.compare_and_swap(txnptr, an, Ordering::Relaxed) == txnptr {
                             old.compare_and_swap(oldptr, an, Ordering::Relaxed);
-                            if let Node::ANode(ref an2) = unsafe {&*an} {
-                                let an2ptr = an2.as_ptr();
-                                for n in an2 {
-                                    let p = n.load(Ordering::Relaxed);
-                                    println!("{:p} in {:p} contains {:p}", an2ptr, an, p);
-                                }
-                            }
-                            println!("created new ANode (4) at pos {}, level {}", pos, lev);
                             true
                         } else {
                             LockfreeTrie::_insert(key, val, h, lev, cur, prev)
