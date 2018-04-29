@@ -168,22 +168,19 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
         }
     }
 
-    fn _create_anode(old: &mut Node<K,V>, sn: Node<K,V>, lev: u8) -> ANode<K,V> {
+    fn _create_anode(old: Node<K,V>, sn: Node<K,V>, lev: u8) -> ANode<K,V> {
         let mut v = makeanode(4);
 
         if let Node::SNode { hash: h_old, .. } = old {
-            let old_pos = (*h_old >> lev) as usize & (v.len() - 1);
+            let old_pos = (h_old >> lev) as usize & (v.len() - 1);
             if let Node::SNode { hash: h_sn, .. } = sn {
                 let sn_pos = (h_sn >> lev) as usize & (v.len() - 1);
-                // assert_ne!(old_pos, sn_pos);
                 if old_pos == sn_pos {
-                    println!("create_anode({:p}): conflict", v.as_ptr());
+                    v[old_pos] = AtomicPtr::new(alloc(Node::ANode(LockfreeTrie::_create_anode(old, sn, lev + 4))));
+                } else {
+                    v[old_pos] = AtomicPtr::new(alloc(old));
+                    v[sn_pos] = AtomicPtr::new(alloc(sn));
                 }
-                v[old_pos] = AtomicPtr::new(old);
-                println!("{:p}[{}] = {:p}", v.as_ptr(), old_pos, old as *mut Node<K,V>);
-                let p = alloc(sn);
-                v[sn_pos] = AtomicPtr::new(p);
-                println!("{:p}[{}] = {:p}", v.as_ptr(), sn_pos, p);
             } else {
                 panic!("CORRUPTION: expected SNode");
             }
@@ -273,7 +270,13 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
                             panic!("ERROR: prev is None")
                         }
                     } else {
-                        let an = alloc(Node::ANode(LockfreeTrie::_create_anode(oldref,
+                        let an = alloc(Node::ANode(LockfreeTrie::_create_anode(
+                            Node::SNode {
+                                hash: *_hash,
+                                key: *_key,
+                                val: *_val,
+                                txn: AtomicPtr::new(alloc(Node::NoTxn))
+                            },
                             Node::SNode {
                                 hash: h,
                                 key: key,
