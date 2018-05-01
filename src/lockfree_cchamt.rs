@@ -1,9 +1,10 @@
 use std::hash::{Hash, Hasher};
 use std::collections::hash_map::DefaultHasher;
-use std::sync::atomic::{AtomicPtr, Ordering};
+use std::sync::atomic::{AtomicPtr, Ordering, AtomicU32};
 use std::option::Option;
 use std::ptr::null_mut;
 use allocator::Allocator;
+use std::thread;
 
 pub trait TrieData: Clone + Copy + Eq + PartialEq {}
 
@@ -47,9 +48,55 @@ fn hash<T>(obj: T) -> u64
     hasher.finish()
 }
 
+const MAX_MISSES: u32 = 2048;   // play with this
+
+struct CacheLevel<K: TrieKey, V: TrieData> {
+    parent: AtomicPtr<CacheLevel<K, V>>,
+    pub nodes: Vec<AtomicPtr<Node<K, V>>>,
+    pub misses: Vec<AtomicU32>,
+}
+
+impl<K: TrieKey, V: TrieData> CacheLevel<K, V> {
+    pub fn new(level: u8, tfact: f64, ncpu: u8) -> Self {
+        let len = 1 << level;
+        let mut nodes = Vec::with_capacity(len);
+        for i in 0..len {
+            nodes[i] = AtomicPtr::new(null_mut());
+        }
+        let len = (tfact * ncpu as f64) as usize;
+        let mut misses = Vec::with_capacity(len);
+        for i in 0..len {
+            misses[i] = AtomicU32::new(0);
+        }
+        CacheLevel {
+            parent: AtomicPtr::new(null_mut()),
+            nodes: nodes,
+            misses: misses,
+        }
+    }
+
+    pub fn parent(&self) -> Option<&mut CacheLevel<K, V>> {
+        let p = self.parent.load(Ordering::Relaxed);
+        if p.is_null() { None } else { Some(unsafe { &mut *p }) }
+    }
+}
+
+struct Cache<K: TrieKey, V: TrieData> {
+    level: AtomicPtr<CacheLevel<K, V>>
+}
+
+impl<K: TrieKey, V: TrieData> Cache<K, V> {
+    pub fn new() -> Self {
+        Cache {
+            level: AtomicPtr::new(null_mut()) // CacheLevel::new(0, 0.3, 8),
+        }
+    }
+}
+
 pub struct LockfreeTrie<K: TrieKey, V: TrieData> {
     root: AtomicPtr<Node<K, V>>,
     mem: Allocator<Node<K, V>>,
+    cache: AtomicPtr<CacheLevel<K, V>>,
 }
 
 fn makeanode<K, V>(len: usize) -> ANode<K, V> {
@@ -69,6 +116,7 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K, V> {
         LockfreeTrie {
             root: AtomicPtr::new(mem.alloc(Node::ANode(makeanode(16)))),
             mem: mem,
+            cache: AtomicPtr::new(null_mut()),
         }
     }
 
@@ -310,28 +358,144 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K, V> {
             || self.insert(key, val)
     }
 
-    fn _lookup<'a>(key: &K, h: u64, lev: u8, cur: &'a Node<K, V>) -> Option<&'a V> {
+    fn _inhabit<'a>(&'a self,
+                    cache: Option<&'a CacheLevel<K, V>>,
+                    nv: *mut Node<K, V>,
+                    hash: u64,
+                    lev: u8) -> () {
+        if let Some(level) = cache {
+            let length = level.nodes.capacity();
+            let cache_level = (length - 1).trailing_zeros();
+            if cache_level == lev.into() {
+                let pos = hash as usize & (length - 1);
+                (&level.nodes[pos]).store(nv, Ordering::Relaxed);
+            }
+        } else {
+            if lev >= 12 {
+                let clevel = Box::into_raw(box CacheLevel::new(lev, 0.3, 8));
+                let levptr = self.cache.load(Ordering::Relaxed);
+                let oldptr = self.cache.compare_and_swap(levptr, clevel, Ordering::Relaxed);
+
+                if !oldptr.is_null() {
+                    let _b = unsafe { Box::from_raw(oldptr) };
+                }
+
+                self._inhabit(Some(unsafe { &*clevel }), nv, hash, lev);
+            }
+        }
+    }
+
+    fn _record_miss(&self) -> () {
+        let mut counter_id: u64 = 0;
+        let mut count: u32 = 0;
+        let levptr = self.cache.load(Ordering::Relaxed);
+        if !levptr.is_null() {
+            let cn = unsafe { &*levptr };
+            {
+                counter_id = hash(thread::current().id()) % cn.misses.capacity() as u64;
+                count = cn.misses[counter_id as usize].load(Ordering::Relaxed);
+            }
+            if count > MAX_MISSES {
+                (&cn.misses[counter_id as usize]).store(0, Ordering::Relaxed);
+                self._sample_and_adjust(Some(cn));
+            } else {
+                (&cn.misses[counter_id as usize]).store(count + 1, Ordering::Relaxed);
+            }
+        }
+    }
+
+    fn _sample_and_adjust<'a>(&'a self,
+                              cache: Option<&'a CacheLevel<K, V>>) -> () {
+        if let Some(level) = cache {
+            let histogram = self._sample_snodes_levels();
+            let mut best = 0;
+            for i in 0..histogram.len() {
+                if histogram[i] > histogram[best] {
+                    best = i;
+                }
+            }
+            let prev = (level.nodes.capacity() as u64 - 1).trailing_zeros() as usize;
+            if (histogram[best as usize] as f32) > histogram[prev >> 2] as f32 * 1.5 {
+                self._adjust_level(best << 2);
+            }
+        }
+    }
+
+    fn _adjust_level(&self, level: usize) -> () {
+        let clevel = Box::into_raw(box CacheLevel::new(level as u8, 0.3, 8));
+        let levptr = self.cache.load(Ordering::Relaxed);
+        let oldptr = self.cache.compare_and_swap(levptr, clevel, Ordering::Relaxed);
+
+        if !oldptr.is_null() {
+            let _b = unsafe { Box::from_raw(oldptr) };
+        }
+    }
+
+    fn _fill_hist(hist: &mut Vec<i32>, node: &Node<K, V>, level: u8) -> () {
+        if let Node::ANode(ref an) = node {
+            for v in an {
+                let vptr = v.load(Ordering::Relaxed);
+
+                if !vptr.is_null() {
+                    let vref = unsafe { &*vptr };
+
+                    if let Node::SNode { .. } = vref {
+                        if level as usize >= hist.capacity() {
+                            hist.resize_default((level as usize) << 1);
+                            hist[level as usize] = 0;
+                        }
+                        hist[level as usize] += 1;
+                    } else if let Node::ANode(_) = vref {
+                        LockfreeTrie::_fill_hist(hist, vref, level + 1);
+                    }
+                }
+            }
+        }
+    }
+
+    fn _sample_snodes_levels(&self) -> Vec<i32> {
+        let mut hist = Vec::new();
+
+        let root = unsafe { &*self.root.load(Ordering::Relaxed) };
+        LockfreeTrie::_fill_hist(&mut hist, root, 0);
+
+        hist
+    }
+
+    fn _lookup<'a>(&self, key: &K, h: u64, lev: u8, cur: &'a mut Node<K, V>,
+                   cache: Option<&'a CacheLevel<K, V>>, cache_lev: Option<u8>) -> Option<&'a V> {
         if let Node::ANode(ref cur2) = cur {
             let pos = (h >> lev) as usize & (cur2.len() - 1);
             let oldptr = (&cur2[pos]).load(Ordering::Relaxed);
-            let oldref = unsafe { &*oldptr };
+            let oldref = unsafe { &mut *oldptr };
 
+            if Some(lev) == cache_lev {
+                self._inhabit(cache, cur, h, lev);
+            }
             if oldptr.is_null() {
                 None
             } else if let Node::FVNode = oldref {
                 None
             } else if let Node::ANode(ref an) = oldref {
-                LockfreeTrie::_lookup(key, h, lev + 4, oldref)
+                self._lookup(key, h, lev + 4, oldref, cache, cache_lev)
             } else if let Node::SNode { key: _key, val, .. } = oldref {
+                if let Some(clev) = cache_lev {
+                    if !(lev >= clev || lev <= clev + 4) {
+                        self._record_miss();
+                    }
+                    if lev + 4 == clev {
+                        self._inhabit(cache, oldptr, h, lev + 4);
+                    }
+                }
                 if *_key == *key {
                     Some(val)
                 } else {
                     None
                 }
             } else if let Node::ENode { narrow, .. } = oldref {
-                LockfreeTrie::_lookup(key, h, lev + 4, unsafe { &*narrow.load(Ordering::Relaxed) })
+                self._lookup(key, h, lev + 4, unsafe { &mut *narrow.load(Ordering::Relaxed) }, cache, cache_lev)
             } else if let Node::FNode { frozen } = oldref {
-                LockfreeTrie::_lookup(key, h, lev + 4, unsafe { &*frozen.load(Ordering::Relaxed) })
+                self._lookup(key, h, lev + 4, unsafe { &mut *frozen.load(Ordering::Relaxed) }, cache, cache_lev)
             } else {
                 // this has never happened once, but just to be sure...
                 panic!("CORRUPTION: oldref is not a valid node")
@@ -342,7 +506,48 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K, V> {
         }
     }
 
+    /**
+     * implemented as fastLookup()
+     */
     pub fn lookup(&self, key: &K) -> Option<&V> {
-        LockfreeTrie::_lookup(key, hash(key), 0, unsafe { &*self.root.load(Ordering::Relaxed) })
+        let h = hash(key);
+        let mut cache_head_ptr = self.cache.load(Ordering::Relaxed);
+
+        if cache_head_ptr.is_null() {
+            self._lookup(key, hash(key), 0, unsafe { &mut *self.root.load(Ordering::Relaxed) }, None, None)
+        } else {
+            let cache_head = unsafe { &*cache_head_ptr };
+            let top_level = (cache_head.nodes.capacity() - 1).trailing_zeros();
+            while !cache_head_ptr.is_null() {
+                let cache_head = unsafe { &*cache_head_ptr };
+                let pos = h & (cache_head.nodes.capacity() - 1) as u64;
+                let cachee_ptr = cache_head.nodes[pos as usize].load(Ordering::Relaxed);
+                let level = (cache_head.nodes.capacity() - 1).trailing_zeros();
+                if !cachee_ptr.is_null() {
+                    let cachee = unsafe { &*cachee_ptr };
+                    if let Node::SNode { txn, key: _key, val, .. } = cachee {
+                        if let Node::NoTxn = unsafe { &*txn.load(Ordering::Relaxed) } {
+                            if *_key == *key {
+                                return Some(val);
+                            } else {
+                                return None;
+                            }
+                        }
+                    } else if let Node::ANode(ref an) = cachee {
+                        let cpos = (h >> level) & (an.capacity() - 1) as u64;
+                        let oldptr = an[cpos as usize].load(Ordering::Relaxed);
+
+                        if !oldptr.is_null() {
+                            if let Node::SNode { txn, .. } = unsafe { &*oldptr } {
+                                if let Node::FSNode = unsafe { &*txn.load(Ordering::Relaxed) } { continue; }
+                            }
+                        }
+                        return self._lookup(key, hash(key), 0, unsafe { &mut *self.root.load(Ordering::Relaxed) }, Some(cache_head), Some(level as u8));
+                    }
+                }
+                cache_head_ptr = cache_head.parent.load(Ordering::Relaxed);
+            }
+            self._lookup(key, hash(key), 0, unsafe { &mut *self.root.load(Ordering::Relaxed) }, None, Some(top_level as u8))
+        }
     }
 }
