@@ -20,6 +20,9 @@ src
 └── rwlock_cchamt.rs 	        // cchamt + rwrite lock per hash trie
 ```
 
+## Raw Data
+- in the dump directory
+
 ## TODO
 - [X] Trie
 - [X] Contiguous Trie
