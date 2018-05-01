@@ -14,13 +14,17 @@ extern crate test;
 extern crate chashmap;
 extern crate rayon;
 
-mod cctrie;
-mod contiguous_cctrie;
-mod bench;
+mod hamt;
+mod cchamt;
+//mod bench;
 mod allocator;
-mod lockfree_cctrie;
+mod lockfree_cchamt;
+mod mutex_cchamt;
+mod rwlock_cchamt;
 
-pub use cctrie::{Trie, TrieData, IndexStatus};
-pub use contiguous_cctrie::ContiguousTrie;
+pub use hamt::{Trie, TrieData, IndexStatus};
+pub use cchamt::ContiguousTrie;
 pub use allocator::Allocator;
-pub use lockfree_cctrie::LockfreeTrie;
+pub use lockfree_cchamt::LockfreeTrie;
+pub use mutex_cchamt::MutexContiguousTrie;
+pub use rwlock_cchamt::RwContiguousTrie;

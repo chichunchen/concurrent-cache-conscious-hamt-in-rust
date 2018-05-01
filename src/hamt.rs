@@ -1,3 +1,6 @@
+/// The very basic hash trie implementation
+/// This file is only for learning how to implement hash trie in Rust
+
 pub trait TrieData: Clone + Copy + Eq + PartialEq {}
 
 impl<T> TrieData for T where T: Clone + Copy + Eq + PartialEq {}

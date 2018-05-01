@@ -10,17 +10,17 @@ use test::Bencher;
 use std::usize;
 use std::collections::HashMap;
 use rand::{Rng, thread_rng};
-use cchamt::ContiguousTrie;
+use cchamt::MutexContiguousTrie;
 
 
 #[test]
 fn test_new_contiguous_trie() {
-    let trie = ContiguousTrie::<usize>::new(32, 8);
+    let trie = MutexContiguousTrie::<usize>::new(32, 8);
 }
 
 #[test]
 fn test_2_power_16_insert() {
-    let mut trie = ContiguousTrie::<usize>::new(32, 8);
+    let mut trie = MutexContiguousTrie::<usize>::new(32, 8);
 
     for i in 0..65536 {
         let str = binary_format!(i);
@@ -37,7 +37,7 @@ fn test_2_power_16_insert() {
 
 #[test]
 fn test_million_consecutive_insert() {
-    let mut trie = ContiguousTrie::<usize>::new(32, 8);
+    let mut trie = MutexContiguousTrie::<usize>::new(32, 8);
 
     for i in 0..1000000 {
         let str = binary_format!(i);

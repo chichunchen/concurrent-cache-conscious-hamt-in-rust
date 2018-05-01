@@ -12,9 +12,6 @@ rayon="1.0.1"
 name = "cchamt"
 path = "src/lib.rs"
 
-[[bin]]
-name = "cchamt"
-path = "src/contiguous_cctrie.rs"
 
 [profile.release]
 opt-level = 3
