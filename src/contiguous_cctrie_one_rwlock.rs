@@ -188,47 +188,40 @@ macro_rules! binary_format {
     };
 }
 
-const NTHREAD: usize = 3;
+const NTHREAD: usize = 4;
 
 fn main() {
-//    let trie = Arc::new(RwContiguousTrie::<usize>::new(32, 8));
-//    for t_id in 0..4 {
-//		let trie = trie.clone();
-//        let begin = t_id * 25000;
-//        let end = (t_id + 1) * 25000;
-//        thread::spawn(move || {
-//            for i in begin..end {
-//                let str = binary_format!(i);
-//                let arr = str.to_owned().into_bytes();
-//				trie.insert(i, &arr[2..]);
-//            }
-//        });
-//    }
-//
-//    for t_id in 0..4 {
-//        let thread_trie = trie.clone();
-//        let begin = t_id * 25000;
-//        let end = (t_id + 1) * 25000;
-//        thread::spawn(move || {
-//            for i in begin..end {
-//                let str = binary_format!(i);
-//                let arr = str.to_owned().into_bytes();
-//                assert_eq!(thread_trie.get(&arr[2..]).unwrap(), i);
-//            }
-//        });
-//    }
 
     let trie = Arc::new(RwContiguousTrie::<usize>::new(32, 8));
-
     let iter = 100000;
-    for i in 0..iter {
-        let str = binary_format!(i);
-        let arr = str.to_owned().into_bytes();
-        trie.insert(i, &arr[2..]);
-    }
 
     let mut thread_handle: Vec<thread::JoinHandle<_>> = vec![];
     let step: usize = iter / NTHREAD;
+
+    let start = SystemTime::now();
+
+    for t_id in 0..NTHREAD {
+        let thread_trie = trie.clone();
+        let begin = t_id * step;
+        let end = (t_id + 1) * step;
+        thread_handle.push(thread::spawn(move || {
+            for i in begin..end {
+                let str = binary_format!(i);
+                let arr = str.to_owned().into_bytes();
+                thread_trie.insert(i, &arr[2..]);
+            }
+        }));
+    }
+
+    for thread in thread_handle {
+        thread.join();
+    }
+
+    let end = SystemTime::now();
+    let since = end.duration_since(start).expect("Time went backwards");
+    println!("cccctrie_insert{:?}", since);
+
+    let mut thread_handle: Vec<thread::JoinHandle<_>> = vec![];
 
     let start = SystemTime::now();
 

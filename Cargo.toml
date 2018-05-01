@@ -14,7 +14,7 @@ path = "src/lib.rs"
 
 [[bin]]
 name = "cchamt"
-path = "src/contiguous_cctrie.rs"
+path = "src/contiguous_cctrie_one_rwlock.rs"
 
 [profile.release]
 opt-level = 3
