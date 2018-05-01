@@ -1,3 +1,13 @@
+/// Cache Conscious Trie - Statically packing the entry contiguously
+/// This file is simply for knowing the potential how cache conscious
+/// could benefit hash trie.
+///
+/// The insert function is this file should be rewrite, or you can see the implementation in
+/// `src/lockfree_cctrie.rs`
+///
+/// The benchmark is in:
+/// https://github.com/chichunchen/concurrent-cache-conscious-hamt-in-rust/blob/layout/Benchmark.ipynb
+
 use std::sync::{Arc, Mutex};
 use std::thread;
 
@@ -76,7 +86,7 @@ impl<T: TrieData> ContiguousTrie<T> {
     }
 
     // return the index in the first <= 4 bits
-// for instances: 0000 0000 -> 0
+    // for instances: 0000 0000 -> 0
     #[inline(always)]
     fn compute_index(&self, key: &[u8]) -> usize {
         let mut id = 0;
@@ -113,6 +123,7 @@ impl<T: TrieData> ContiguousTrie<T> {
         (current_index, depth)
     }
 
+    // insert the entry to hash trie
     pub fn insert(&mut self, value: T, key: &[u8]) {
         let index_depth_pair = self.key2index(key);
 //        println!("debug {} {}", index_depth_pair, self.memory.len());
@@ -132,6 +143,7 @@ impl<T: TrieData> ContiguousTrie<T> {
         });
     }
 
+    // return true if the key entry exists
     #[inline(always)]
     pub fn contain(&self, key: &[u8]) -> bool {
         let index_depth_pair = self.key2index(key);
@@ -146,6 +158,7 @@ impl<T: TrieData> ContiguousTrie<T> {
         }
     }
 
+    // return the value in the given key and wrap it with an Option
     #[inline(always)]
     pub fn get(&self, key: &[u8]) -> Option<T> {
         let index_depth_pair = self.key2index(key);
