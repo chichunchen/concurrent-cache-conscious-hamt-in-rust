@@ -1,9 +1,10 @@
 use std::hash::{Hash,Hasher};
 use std::collections::hash_map::DefaultHasher;
-use std::sync::atomic::{AtomicPtr,Ordering};
+use std::sync::atomic::{AtomicPtr,Ordering,AtomicU32};
 use std::option::Option;
 use std::ptr::null_mut;
 use allocator::Allocator;
+use std::thread;
 
 pub trait TrieData: Clone + Copy + Eq + PartialEq {}
 
@@ -46,9 +47,101 @@ where
     hasher.finish()
 }
 
+const MAX_MISSES: u32 = 2048;   // play with this
+
+struct CacheLevel<K: TrieKey, V: TrieData> {
+    parent: AtomicPtr<CacheLevel<K,V>>,
+    pub nodes: Vec<AtomicPtr<Node<K,V>>>,
+    pub misses: Vec<AtomicU32>
+}
+
+impl<K: TrieKey, V: TrieData> CacheLevel<K,V> {
+    pub fn new(level: u8, tfact: f64, ncpu: u8) -> Self {
+        let len = 1 << level;
+        let mut nodes = Vec::with_capacity(len);
+        for i in 0..len {
+            nodes[i] = AtomicPtr::new(null_mut());
+        }
+        let len = (tfact * ncpu as f64) as usize;
+        let mut misses = Vec::with_capacity(len);
+        for i in 0..len {
+            misses[i] = AtomicU32::new(0);
+        }
+        CacheLevel {
+            parent: AtomicPtr::new(null_mut()),
+            nodes: nodes,
+            misses: misses
+        }
+    }
+
+    pub fn parent(&self) -> Option<&mut CacheLevel<K,V>> {
+        let p = self.parent.load(Ordering::Relaxed);
+        if p.is_null() { None }
+        else { Some(unsafe {&mut *p}) }
+    }
+}
+
+struct Cache<K: TrieKey, V: TrieData> {
+    level: CacheLevel<K,V>,
+}
+
+impl<K: TrieKey, V: TrieData> Cache<K,V> {
+    pub fn new() -> Self {
+        Cache {
+            level: CacheLevel::new(0, 0.3, 8),
+        }
+    }
+
+    pub fn inhabit(&self, 
+                   nv: *mut Node<K,V>,
+                   hash: u64,
+                   lev: u8) -> () {
+        let length = self.level.nodes.capacity();
+        let cache_level = (length - 1).trailing_zeros();
+        if cache_level == lev.into() {
+            let pos = hash as usize & (length - 1);
+            (&self.level.nodes[pos]).store(nv, Ordering::Relaxed);
+        }
+    }
+
+    pub fn record_miss(&mut self) -> () {
+        let mut counter_id: u64 = 0;
+        let mut count: u32 = 0;
+        {
+            let cn = &self.level;
+            counter_id = hash(thread::current().id()) % cn.misses.capacity() as u64;
+            count = cn.misses[counter_id as usize].load(Ordering::Relaxed);
+        }
+        if count > MAX_MISSES {
+            (&self.level.misses[counter_id as usize]).store(0, Ordering::Relaxed);
+            self.sample_and_adjust();
+        } else {
+            (&self.level.misses[counter_id as usize]).store(count + 1, Ordering::Relaxed);
+        }
+    }
+
+    pub fn sample_and_adjust(&mut self) -> () {
+        let histogram = self.sample_snodes_levels();
+        let best = self.find_most_populated_level(&histogram);
+        let prev = (self.level.nodes.capacity() as u64 - 1).trailing_zeros() as usize;
+        if (histogram[best] as f32) > histogram[prev] as f32 * 1.5 {
+            self.adjust_cache_level(best);
+        }
+    }
+
+    fn adjust_cache_level(&mut self, level: usize) -> () {
+        unimplemented!()
+    }
+
+    fn sample_snodes_levels(&self) -> Vec<i32> { unimplemented!() }
+
+    fn find_most_populated_level(&self, hist: &Vec<i32>) -> usize { unimplemented!() }
+}
+
 pub struct LockfreeTrie<K: TrieKey, V: TrieData> {
     root: AtomicPtr<Node<K,V>>,
-    mem: Allocator<Node<K,V>>
+    mem: Allocator<Node<K,V>>,
+    cache: Cache<K,V>
 }
 
 fn makeanode<K,V>(len: usize) -> ANode<K,V> {
@@ -67,7 +160,8 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
         let mem = Allocator::new(1000000000);
         LockfreeTrie {
             root: AtomicPtr::new(mem.alloc(Node::ANode(makeanode(16)))),
-            mem: mem
+            mem: mem,
+            cache: Cache::new()
         }
     }
 

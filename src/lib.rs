@@ -7,6 +7,7 @@
 #![feature(box_syntax)]
 #![feature(core_intrinsics)]
 #![feature(libc)]
+#![feature(integer_atomics)]
 
 extern crate core;
 extern crate rand;
