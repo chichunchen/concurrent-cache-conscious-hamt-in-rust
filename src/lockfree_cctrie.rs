@@ -397,6 +397,7 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
                 counter_id = hash(thread::current().id()) % cn.misses.capacity() as u64;
                 count = cn.misses[counter_id as usize].load(Ordering::Relaxed);
             }
+            println!("recorded miss");
             if count > MAX_MISSES {
                 (&cn.misses[counter_id as usize]).store(0, Ordering::Relaxed);
                 self._sample_and_adjust(Some(cn));
@@ -472,6 +473,7 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
             let oldref = unsafe {&mut *oldptr};
 
             if Some(lev) == cache_lev {
+                println!("inhabit at {}", lev);
                 self._inhabit(cache, cur, h, lev);
             }
 
@@ -483,12 +485,14 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
                 self._lookup(key, h, lev + 4, oldref, cache, cache_lev)
             } else if let Node::SNode { key: _key, val, .. } = oldref {
                 if let Some(clev) = cache_lev {
-                    if !(lev >= clev || lev <= clev + 4) {
+                    if !(lev >= clev && lev <= clev + 4) {
                         self._record_miss();
                     }
                     if lev + 4 == clev {
                         self._inhabit(cache, oldptr, h, lev + 4);
                     }
+                } else {
+                    self._record_miss();
                 }
                 if *_key == *key {
                     Some(val)
