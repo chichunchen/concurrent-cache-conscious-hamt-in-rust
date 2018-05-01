@@ -42,8 +42,8 @@ src
     - [ ] Dynamic data packing (http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.76.2169&rep=rep1&type=pdf)
         
 
-## Bench
-- See [here](https://github.com/chichunchen/concurrent-cache-conscious-hamt-in-rust/blob/layout/Benchmark.ipynb).
+## Benchmark
+- See [here](https://github.com/chichunchen/concurrent-cache-conscious-hamt-in-rust/blob/bench/Benchmark.ipynb).
     - In the contiguous base, sequential order such as ascending or descending performs very well when we have more than
 10^5 elements
     - While other point that worth to talk about is when we read the element from hashmap randomly, the official hashmap
