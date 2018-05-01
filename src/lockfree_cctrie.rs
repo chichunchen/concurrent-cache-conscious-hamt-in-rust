@@ -399,34 +399,70 @@ impl<K: TrieKey, V: TrieData> LockfreeTrie<K,V> {
             }
             if count > MAX_MISSES {
                 (&cn.misses[counter_id as usize]).store(0, Ordering::Relaxed);
-                self._sample_and_adjust();
+                self._sample_and_adjust(Some(cn));
             } else {
                 (&cn.misses[counter_id as usize]).store(count + 1, Ordering::Relaxed);
             }
         }
     }
 
-    fn _sample_and_adjust(&self) -> () {
-        let levptr = self.cache.load(Ordering::Relaxed);
-        if !levptr.is_null() {
-            let level = unsafe {&*levptr};
+    fn _sample_and_adjust<'a>(&'a self, 
+                cache: Option<&'a CacheLevel<K,V>>) -> () {
+        if let Some(level) = cache {
             let histogram = self._sample_snodes_levels();
-            let best = self._find_most_populated_level(&histogram);
+            let mut best = 0;
+            for i in 0..histogram.len() {
+                if histogram[i] > histogram[best] {
+                    best = i;
+                }
+            }
             let prev = (level.nodes.capacity() as u64 - 1).trailing_zeros() as usize;
-            if (histogram[best] as f32) > histogram[prev] as f32 * 1.5 {
-                self._adjust_level(best);
+            if (histogram[best as usize] as f32) > histogram[prev >> 2] as f32 * 1.5 {
+                self._adjust_level(best << 2);
             }
         }
     }
 
     fn _adjust_level(&self, level: usize) -> () {
-        unimplemented!()
+        let clevel = Box::into_raw(box CacheLevel::new(level as u8, 0.3, 8));
+        let levptr = self.cache.load(Ordering::Relaxed);
+        let oldptr = self.cache.compare_and_swap(levptr, clevel, Ordering::Relaxed);
+
+        if !oldptr.is_null() {
+            let _b = unsafe {Box::from_raw(oldptr)};
+        }
     }
 
-    fn _sample_snodes_levels(&self) -> Vec<i32> { unimplemented!() }
+    fn _fill_hist(hist: &mut Vec<i32>, node: &Node<K,V>, level: u8) -> () {
+        if let Node::ANode(ref an) = node {
+            for v in an {
+                let vptr = v.load(Ordering::Relaxed);
 
-    fn _find_most_populated_level(&self, hist: &Vec<i32>) -> usize { unimplemented!() }
+                if !vptr.is_null() {
+                    let vref = unsafe {&*vptr};
 
+                    if let Node::SNode { .. } = vref {
+                        if level as usize >= hist.capacity() {
+                            hist.resize_default((level as usize) << 1);
+                            hist[level as usize] = 0;
+                        }
+                        hist[level as usize] += 1;
+                    } else if let Node::ANode(_) = vref {
+                        LockfreeTrie::_fill_hist(hist, vref, level + 1);
+                    }
+                }
+            }
+        }
+    }
+
+    fn _sample_snodes_levels(&self) -> Vec<i32> {
+        let mut hist = Vec::new();
+
+        let root = unsafe {&*self.root.load(Ordering::Relaxed)};
+        LockfreeTrie::_fill_hist(&mut hist, root, 0);
+
+        hist
+    }
 
     fn _lookup<'a>(&self, key: &K, h: u64, lev: u8, cur: &'a mut Node<K,V>, 
                    cache: Option<&'a CacheLevel<K,V>>, cache_lev: Option<u8>) -> Option<&'a V> {

@@ -8,6 +8,7 @@
 #![feature(core_intrinsics)]
 #![feature(libc)]
 #![feature(integer_atomics)]
+#![feature(vec_resize_default)]
 
 extern crate core;
 extern crate rand;
